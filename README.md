@@ -20,9 +20,9 @@ PinPanda transforms your messy bookmark collection into neatly organized categor
 
 ## 🚀 Getting Started
 
-### Try PinPanda Online
+<!-- ### Try PinPanda Online
 
-Visit our hosted version at [pinpanda.app](https://pinpanda.app) to try PinPanda without any installation.
+Visit our hosted version at [pinpanda.app](https://pinpanda.app) to try PinPanda without any installation. -->
 
 ### Run Locally
 

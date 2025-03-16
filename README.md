@@ -3,7 +3,7 @@
 PinPanda is a delightful web application that helps you tame the chaos of your browser bookmarks using AI. Say goodbye to disorganized bookmark folders and hello to a beautifully organized collection!
 
 <div align="center">
-  <img src="public/favicon.svg" alt="PinPanda Logo" width="120" height="120">
+  <img src="public/PinPanda-logo.png" alt="PinPanda Logo" width="120" height="120">
   <br>
   <em>Organize your bookmarks intelligently with PinPanda's AI-powered categorization</em>
 </div>

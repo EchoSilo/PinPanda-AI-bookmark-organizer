@@ -14,7 +14,7 @@ import {
   Container,
   Flex
 } from '@chakra-ui/react';
-import { API_KEY } from '@/services/aiService/constants';
+import { getApiKey } from '@/services/aiService/constants';
 
 export default function APITestPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,8 +27,8 @@ export default function APITestPage() {
     setResult(null);
 
     try {
-      // Clean the API key - remove any line breaks or whitespace
-      const apiKey = API_KEY.replace(/\s+/g, '');
+      // Get the API key from localStorage
+      const apiKey = getApiKey();
       
       // Log the API key (first few characters only for security)
       const maskedKey = apiKey ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 4)}` : 'Not found';
@@ -37,7 +37,7 @@ export default function APITestPage() {
       console.log('API Key length:', apiKey?.length || 0);
 
       if (!apiKey) {
-        throw new Error('No API key found. Please add your OpenAI API key to the .env.local file.');
+        throw new Error('No API key found. Please add your OpenAI API key in the connection settings.');
       }
 
       // Make a direct fetch call to OpenAI API
@@ -92,7 +92,7 @@ export default function APITestPage() {
         <Box p={4} borderWidth="1px" borderRadius="md">
           <VStack spacing={4} align="stretch">
             <Text>
-              This page tests a direct connection to the OpenAI API using the API key from your environment variables.
+              This page tests a direct connection to the OpenAI API using your stored API key.
             </Text>
             
             <Button 

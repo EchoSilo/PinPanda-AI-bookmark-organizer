@@ -5,6 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import * as Logger from '../logService';
 import { Bookmark, OrganizedBookmarks, ProcessingProgress, AIResponse } from '@/types';
 import { 
+<<<<<<< Updated upstream
+=======
+  getApiKey,
+>>>>>>> Stashed changes
   PROCESSING_TIMEOUT_MS, 
   CATEGORIZATION_SYSTEM_PROMPT,
   REORGANIZATION_SYSTEM_PROMPT,
@@ -169,7 +173,11 @@ export const organizeBookmarks = async (
   }
   
   try {
+<<<<<<< Updated upstream
     // Get the latest API key from localStorage
+=======
+    // Get the API key from localStorage
+>>>>>>> Stashed changes
     const apiKey = getApiKey();
     
     // Check if API key is valid
@@ -865,11 +873,18 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
 };
 
 // Call the OpenAI API
-const callOpenAI = async (
+export const callOpenAI = async (
   systemPrompt: string, 
   userPrompt: string
 ): Promise<{ content: string }> => {
+  const apiKey = getApiKey();
+  
+  if (!isValidApiKey(apiKey)) {
+    throw new Error('Invalid or missing API key');
+  }
+
   try {
+<<<<<<< Updated upstream
     Logger.info('AIService', 'Calling OpenAI API with model: gpt-4o-mini');
     
     // Get the latest API key from localStorage
@@ -927,63 +942,28 @@ const callOpenAI = async (
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
+=======
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: "gpt-3.5-turbo",
+>>>>>>> Stashed changes
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: max_tokens // Dynamic max_tokens based on available context
-      })
-    });
-    
-    const requestDuration = (Date.now() - requestStartTime) / 1000;
-    Logger.info('AIService', `API request completed in ${requestDuration.toFixed(2)} seconds`);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      Logger.error('AIService', `OpenAI API error: ${response.status} ${response.statusText}`, errorData);
-      
-      // Check for context length exceeded error
-      if (errorData?.error?.code === 'context_length_exceeded') {
-        Logger.error('AIService', `Context length exceeded: ${errorData.error.message}`);
-        throw new Error(`Context length exceeded: ${errorData.error.message}. Please reduce the amount of data being sent.`);
+        max_tokens: 2000
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
       }
-      
-      // Provide more specific error messages based on status code
-      if (response.status === 401) {
-        throw new Error('API key is invalid. Please check your OpenAI API key in .env.local file.');
-      } else if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again later or check your OpenAI account limits.');
-      } else {
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`);
-      }
-    }
-    
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      Logger.error('AIService', 'Invalid response format from OpenAI API', data);
-      throw new Error('Invalid response format from OpenAI API');
-    }
-    
-    // Log response details
-    const responseContent = data.choices[0].message.content;
-    const responseTokens = estimateTokenCount(responseContent);
-    const totalTokens = totalRequestTokens + responseTokens;
-    
-    Logger.debug('AIService', `API Response Details:`, {
-      responseTokens,
-      totalTokens,
-      model: data.model,
-      finishReason: data.choices[0].finish_reason,
-      promptTokens: data.usage?.prompt_tokens,
-      completionTokens: data.usage?.completion_tokens,
-      totalTokensReported: data.usage?.total_tokens
-    });
-    
-    Logger.info('AIService', `Received response with approximately ${responseTokens} tokens`);
-    
-    return { content: responseContent };
+    );
+
+    return { content: response.data.choices[0].message.content };
   } catch (error) {
     Logger.error('AIService', `OpenAI API call failed: ${error}`);
     throw error;
@@ -994,6 +974,7 @@ const callOpenAI = async (
 export const testAIConnection = async (): Promise<boolean> => {
   try {
     const apiKey = getApiKey();
+<<<<<<< Updated upstream
     if (!apiKey) {
       return false;
     }
@@ -1007,6 +988,35 @@ export const testAIConnection = async (): Promise<boolean> => {
     return response.ok;
   } catch (error) {
     console.error('Error testing AI connection:', error);
+=======
+    
+    if (!isValidApiKey(apiKey)) {
+      return false;
+    }
+
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          { role: "user", content: "Say hello!" }
+        ],
+        temperature: 0.3,
+        max_tokens: 50
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.status === 200;
+  } catch (error) {
+    Logger.error('AIService', `API connection test failed: ${error}`);
+>>>>>>> Stashed changes
     return false;
   }
 };

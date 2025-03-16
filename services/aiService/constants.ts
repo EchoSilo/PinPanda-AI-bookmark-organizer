@@ -1,5 +1,14 @@
 // Configuration constants
-export const API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY || '';
+export const getApiKey = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('openai_api_key') || '';
+  }
+  return '';
+};
+
+// Don't store a static value for API_KEY since it might change
+// Instead, always call getApiKey() when needed
+
 export const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes
 export const MAX_TOKENS_PER_CHUNK = 8000;
 export const MAX_BOOKMARKS_PER_LARGE_FOLDER_CHUNK = 20;
@@ -104,6 +113,9 @@ CATEGORIZATION STRATEGY:
 6. Ensure no category is too large or too small
 7. Review and refine the structure for balance and usability
 `;
+
+export const OPENAI_MODEL = 'gpt-3.5-turbo';
+export const MAX_TOKENS = 2000;
 
 // Add a function to check if the API key is valid
 export const isValidApiKey = (key: string): boolean => {

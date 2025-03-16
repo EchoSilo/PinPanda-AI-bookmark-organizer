@@ -44,9 +44,10 @@ import BookmarkUploader from './components/BookmarkUploader';
 import AIProcessingScreen from './components/AIProcessingScreen';
 import BookmarkOrganizer from './components/BookmarkOrganizer';
 import AIResponseViewer from './components/AIResponseViewer';
-import APIKeyInstructions from './components/APIKeyInstructions';
+import APIKeyInput from './components/APIKeyInput';
 import DebugPanel from './components/DebugPanel';
 import PinPandaLogo from './components/PinPandaLogo';
+import { InfoIcon, EditIcon } from '@chakra-ui/icons';
 
 export default function Home() {
   const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null);
@@ -71,26 +72,10 @@ export default function Home() {
       // Set log level to DEBUG for more detailed logging
       setLogLevel(LogLevel.DEBUG);
       info('App', 'Application started with DEBUG log level');
+      // Check connection on startup
+      checkConnection();
     } catch (err) {
       console.error('Failed to log application start:', err);
-    }
-  }, []);
-
-  // Check if OpenAI API key is configured
-  useEffect(() => {
-    try {
-      const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY;
-      if (!apiKey) {
-        warning('App', 'No OpenAI API key configured');
-        setError('No OpenAI API key configured. AI categorization will not work. Please add your API key to the .env.local file.');
-        setConnectionStatus('failed');
-      } else {
-        info('App', 'OpenAI API key is configured');
-        // Check connection on startup
-        checkConnection();
-      }
-    } catch (err) {
-      console.error('Failed to check API key:', err);
     }
   }, []);
 
@@ -110,6 +95,17 @@ export default function Home() {
       setConnectionStatus('failed');
     } finally {
       setIsCheckingConnection(false);
+    }
+  };
+
+  // Handle API key changes from the APIKeyInput component
+  const handleApiKeyChange = (key: string, isValid: boolean) => {
+    info('App', `API key ${isValid ? 'validated successfully' : 'validation failed'}`);
+    setConnectionStatus(isValid ? 'connected' : 'failed');
+    
+    // If the key was cleared or found invalid, update the connection status
+    if (!key || !isValid) {
+      setConnectionStatus('failed');
     }
   };
 
@@ -182,6 +178,12 @@ export default function Home() {
     info('App', 'Reset application state');
   };
 
+  // Run connection check when modal opens
+  const handleModalOpen = () => {
+    onOpen();
+    checkConnection();
+  };
+
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={8} align="stretch">
@@ -209,7 +211,7 @@ export default function Home() {
                 px={2}
                 borderRadius="full"
                 cursor="pointer"
-                onClick={onOpen}
+                onClick={handleModalOpen}
                 display="flex"
                 alignItems="center"
               >
@@ -220,12 +222,42 @@ export default function Home() {
         </Flex>
 
         <Box textAlign="center">
-          <Text fontSize="lg" color="gray.600" mb={2}>
+          <Text fontSize="lg" color="gray.600" mb={4}>
             Upload your bookmarks and organize them with AI
           </Text>
-          <Text fontSize="sm" color="gray.500" mb={2}>
-            Note: You need to add your OpenAI API key to the .env.local file for AI categorization to work.
-          </Text>
+          
+          <Box maxW="md" mx="auto" mb={6}>
+            {connectionStatus === 'connected' ? (
+              <Flex 
+                direction="column" 
+                alignItems="center" 
+                bg="green.50" 
+                p={3} 
+                borderRadius="md"
+              >
+                <Flex alignItems="center" mb={2}>
+                  <Text color="green.600" fontWeight="medium" mr={2}>
+                    OpenAI API Key connected successfully
+                  </Text>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    colorScheme="green" 
+                    leftIcon={<EditIcon />}
+                    onClick={handleModalOpen}
+                  >
+                    Edit
+                  </Button>
+                </Flex>
+                <Text fontSize="sm" color="gray.600">
+                  <InfoIcon mr={1} />
+                  Your bookmarks will be processed with AI categorization
+                </Text>
+              </Flex>
+            ) : (
+              <APIKeyInput onApiKeyChange={handleApiKeyChange} />
+            )}
+          </Box>
         </Box>
 
         {error && (
@@ -379,7 +411,7 @@ export default function Home() {
                     To use the AI features of this application, you need an OpenAI API key. 
                     Follow these steps to get one:
                   </Text>
-                  <APIKeyInstructions />
+                  <APIKeyInput onApiKeyChange={handleApiKeyChange} />
                 </Box>
               </VStack>
             </ModalBody>

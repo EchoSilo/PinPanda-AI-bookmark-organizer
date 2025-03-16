@@ -5,11 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import * as Logger from '../logService';
 import { Bookmark, OrganizedBookmarks, ProcessingProgress, AIResponse } from '@/types';
 import { 
-  API_KEY, 
   PROCESSING_TIMEOUT_MS, 
   CATEGORIZATION_SYSTEM_PROMPT,
   REORGANIZATION_SYSTEM_PROMPT,
-  isValidApiKey
+  isValidApiKey,
+  getApiKey,
+  OPENAI_MODEL,
+  MAX_TOKENS
 } from './constants';
 import { 
   findDuplicateBookmarks, 
@@ -167,11 +169,11 @@ export const organizeBookmarks = async (
   }
   
   try {
-    // Clean the API key - remove any line breaks or whitespace
-    const cleanApiKey = API_KEY.replace(/\s+/g, '');
+    // Get the latest API key from localStorage
+    const apiKey = getApiKey();
     
     // Check if API key is valid
-    if (!isValidApiKey(cleanApiKey)) {
+    if (!isValidApiKey(apiKey)) {
       Logger.warning('AIService', 'Invalid or missing API key, using fallback categorization');
       return createMinimalResult(bookmarksWithIds);
     }
@@ -870,12 +872,12 @@ const callOpenAI = async (
   try {
     Logger.info('AIService', 'Calling OpenAI API with model: gpt-4o-mini');
     
-    // Clean the API key - remove any line breaks or whitespace
-    const cleanApiKey = API_KEY.replace(/\s+/g, '');
+    // Get the latest API key from localStorage
+    const apiKey = getApiKey();
     
-    if (!cleanApiKey || cleanApiKey.length < 20) {
-      Logger.error('AIService', `Invalid API key: ${cleanApiKey ? 'Too short' : 'Empty'}`);
-      throw new Error('Invalid API key format. Please check your .env.local file.');
+    if (!apiKey || apiKey.length < 20) {
+      Logger.error('AIService', `Invalid API key: ${apiKey ? 'Too short' : 'Empty'}`);
+      throw new Error('Invalid API key format. Please check your API key.');
     }
     
     // Log request details
@@ -914,13 +916,13 @@ const callOpenAI = async (
       temperature: 0.3
     });
     
-    Logger.info('AIService', `Using API key (masked): ${cleanApiKey.substring(0, 5)}...${cleanApiKey.substring(cleanApiKey.length - 4)}`);
+    Logger.info('AIService', `Using API key (masked): ${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 4)}`);
     
     const requestStartTime = Date.now();
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${cleanApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -991,50 +993,82 @@ const callOpenAI = async (
 // Test the OpenAI connection
 export const testAIConnection = async (): Promise<boolean> => {
   try {
-    // Clean the API key - remove any line breaks or whitespace
-    const cleanApiKey = API_KEY.replace(/\s+/g, '');
-    
-    if (!isValidApiKey(cleanApiKey)) {
-      Logger.warning('AIService', 'Invalid API key format when testing connection');
+    const apiKey = getApiKey();
+    if (!apiKey) {
       return false;
     }
-    
-    Logger.info('AIService', 'Testing connection to OpenAI API with model: gpt-4o-mini');
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
+
+    const response = await fetch('https://api.openai.com/v1/models', {
       headers: {
-        'Authorization': `Bearer ${cleanApiKey}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a helpful assistant." },
-          { role: "user", content: "Say hello!" }
-        ],
-        temperature: 0.3,
-        max_tokens: 10
-      })
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      Logger.error('AIService', `API test failed: ${response.status} ${response.statusText}`, errorData);
-      return false;
-    }
-    
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      Logger.error('AIService', 'Invalid response format from OpenAI API during test', data);
-      return false;
-    }
-    
-    Logger.info('AIService', 'OpenAI API test successful');
-    return true;
+
+    return response.ok;
   } catch (error) {
-    Logger.error('AIService', `OpenAI API test failed with error: ${error}`);
+    console.error('Error testing AI connection:', error);
     return false;
+  }
+};
+
+const makeOpenAIRequest = async (messages: any[], onProgress?: (chunk: string) => void) => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('OpenAI API key not found. Please enter your API key.');
+  }
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages,
+      max_tokens: MAX_TOKENS,
+      temperature: 0.7,
+      stream: !!onProgress,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.statusText}`);
+  }
+
+  if (onProgress) {
+    // Handle streaming response
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content;
+            if (content) onProgress(content);
+          } catch (e) {
+            console.error('Error parsing SSE:', e);
+          }
+        }
+      }
+    }
+
+    return null;
+  } else {
+    // Handle regular response
+    const data = await response.json();
+    return data.choices[0]?.message?.content;
   }
 };

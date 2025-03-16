@@ -20,10 +20,6 @@ PinPanda transforms your messy bookmark collection into neatly organized categor
 
 ## 🚀 Getting Started
 
-<!-- ### Try PinPanda Online
-
-Visit our hosted version at [pinpanda.app](https://pinpanda.app) to try PinPanda without any installation. -->
-
 ### Run Locally
 
 #### Prerequisites
@@ -86,7 +82,6 @@ PinPanda is built with modern web technologies:
 - **Next.js** - React framework for server-rendered applications
 - **TypeScript** - Type-safe JavaScript
 - **Chakra UI** - Component library for beautiful, accessible UI
-- **TailwindCSS** - Utility-first CSS framework
 - **OpenAI API** - AI-powered bookmark categorization
 
 ## 🤝 Contributing
@@ -100,7 +95,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - OpenAI for providing the AI capabilities
-- The Next.js, Chakra UI, and TailwindCSS teams for their excellent tools
+- The Next.js and Chakra UI teams for their excellent tools
 - All our users who provide valuable feedback
 
 ---

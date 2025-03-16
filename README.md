@@ -20,6 +20,15 @@ PinPanda transforms your messy bookmark collection into neatly organized categor
 
 ## 🚀 Getting Started
 
+### Try PinPanda Online
+
+Visit [PinPanda](https://pinpanda-ai-bookmark-organizer.onrender.com/) to start organizing your bookmarks right away! All you need is:
+
+1. Your browser bookmarks exported as an HTML file
+2. An OpenAI API key (you can get one [here](https://platform.openai.com/api-keys))
+
+That's it! Upload your bookmarks, enter your API key, and watch PinPanda work its magic.
+
 ### Run Locally
 
 #### Prerequisites
@@ -43,19 +52,16 @@ npm install
 yarn install
 ```
 
-3. Create a `.env.local` file in the root directory and add your OpenAI API key:
-```
-NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
-```
-
-4. Start the development server
+3. Start the development server
 ```bash
 npm run dev
 # or
 yarn dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+5. Enter your OpenAI API key in the app's connection settings
 
 ## 📚 How to Use PinPanda
 
@@ -67,13 +73,15 @@ yarn dev
 
 2. **Upload** the HTML file to PinPanda
 
-3. **Watch the magic happen** as PinPanda processes and categorizes your bookmarks
+3. **Enter your OpenAI API key** in the connection settings
 
-4. **Fine-tune** your bookmark collection by dragging items between categories
+4. **Watch the magic happen** as PinPanda processes and categorizes your bookmarks
 
-5. **Export** your organized bookmarks back to an HTML file
+5. **Fine-tune** your bookmark collection by dragging items between categories
 
-6. **Import** the organized bookmarks back into your browser
+6. **Export** your organized bookmarks back to an HTML file
+
+7. **Import** the organized bookmarks back into your browser
 
 ## 🛠️ Tech Stack
 

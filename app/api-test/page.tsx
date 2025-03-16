@@ -14,7 +14,7 @@ import {
   Container,
   Flex
 } from '@chakra-ui/react';
-import { getApiKey } from '@/services/aiService/constants';
+import { getApiKey, OPENAI_MODEL, MAX_TOKENS } from '@/services/aiService/constants';
 
 export default function APITestPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -48,13 +48,13 @@ export default function APITestPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: "gpt-3.5-turbo",
+          model: OPENAI_MODEL,
           messages: [
             { role: "system", content: "You are a helpful assistant." },
             { role: "user", content: "Say hello and confirm the API is working." }
           ],
           temperature: 0.3,
-          max_tokens: 50
+          max_tokens: MAX_TOKENS
         })
       });
 

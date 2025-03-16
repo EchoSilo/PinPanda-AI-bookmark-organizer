@@ -13,7 +13,17 @@ export const metadata: Metadata = {
   title: "PinPanda - Smart Bookmark Organizer",
   description: "Organize your bookmarks intelligently with PinPanda's AI-powered categorization",
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      {
+        url: '/favicon.svg',
+        type: 'image/svg+xml',
+      },
+      {
+        url: '/favicon.ico',
+        sizes: 'any',
+      },
+    ],
+    apple: '/favicon.svg',
   },
 };
 

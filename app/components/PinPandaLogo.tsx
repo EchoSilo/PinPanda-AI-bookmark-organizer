@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, Flex, Text, Icon, HStack } from '@chakra-ui/react';
-import { FiBookmark } from 'react-icons/fi';
+import { Box, Flex, Text, Image, HStack } from '@chakra-ui/react';
 
 interface PinPandaLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -14,22 +13,22 @@ const PinPandaLogo: React.FC<PinPandaLogoProps> = ({ size = 'md', withTagline = 
   const sizeMap = {
     sm: {
       fontSize: 'xl',
-      iconSize: 5,
+      iconSize: '20px',
       taglineSize: 'xs',
     },
     md: {
       fontSize: '2xl',
-      iconSize: 6,
+      iconSize: '24px',
       taglineSize: 'sm',
     },
     lg: {
       fontSize: '3xl',
-      iconSize: 7,
+      iconSize: '28px',
       taglineSize: 'md',
     },
     xl: {
       fontSize: '4xl',
-      iconSize: 8,
+      iconSize: '32px',
       taglineSize: 'lg',
     },
   };
@@ -38,17 +37,19 @@ const PinPandaLogo: React.FC<PinPandaLogoProps> = ({ size = 'md', withTagline = 
     <Flex direction="column" align="center">
       <HStack spacing={2} align="center">
         <Box 
-          bg="green.500" 
           borderRadius="full" 
-          p={1} 
           display="flex" 
           alignItems="center" 
           justifyContent="center"
+          overflow="hidden"
+          width={sizeMap[size].iconSize}
+          height={sizeMap[size].iconSize}
         >
-          <Icon 
-            as={FiBookmark} 
-            color="white" 
-            boxSize={sizeMap[size].iconSize} 
+          <Image 
+            src="/favicon.svg" 
+            alt="PinPanda"
+            width="100%"
+            height="100%"
           />
         </Box>
         <Text 

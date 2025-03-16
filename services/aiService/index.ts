@@ -5,15 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import * as Logger from '../logService';
 import { Bookmark, OrganizedBookmarks, ProcessingProgress, AIResponse } from '@/types';
 import { 
-<<<<<<< Updated upstream
-=======
   getApiKey,
->>>>>>> Stashed changes
   PROCESSING_TIMEOUT_MS, 
   CATEGORIZATION_SYSTEM_PROMPT,
   REORGANIZATION_SYSTEM_PROMPT,
   isValidApiKey,
-  getApiKey,
   OPENAI_MODEL,
   MAX_TOKENS
 } from './constants';
@@ -173,11 +169,7 @@ export const organizeBookmarks = async (
   }
   
   try {
-<<<<<<< Updated upstream
-    // Get the latest API key from localStorage
-=======
     // Get the API key from localStorage
->>>>>>> Stashed changes
     const apiKey = getApiKey();
     
     // Check if API key is valid
@@ -884,76 +876,16 @@ export const callOpenAI = async (
   }
 
   try {
-<<<<<<< Updated upstream
-    Logger.info('AIService', 'Calling OpenAI API with model: gpt-4o-mini');
-    
-    // Get the latest API key from localStorage
-    const apiKey = getApiKey();
-    
-    if (!apiKey || apiKey.length < 20) {
-      Logger.error('AIService', `Invalid API key: ${apiKey ? 'Too short' : 'Empty'}`);
-      throw new Error('Invalid API key format. Please check your API key.');
-    }
-    
-    // Log request details
-    const systemTokens = estimateTokenCount(systemPrompt);
-    const userTokens = estimateTokenCount(userPrompt);
-    const totalRequestTokens = systemTokens + userTokens;
-    
-    // Calculate safe max_tokens to avoid exceeding context length
-    // GPT-4o-mini has a 128,000 token context window and 16,384 max output tokens
-    const MODEL_MAX_TOKENS = 128000; // Context window size
-    const MAX_OUTPUT_TOKENS = 8000;  // Reduced from 16384 to be more conservative
-    const SAFETY_BUFFER = 5000;      // Increased from 1000 for more safety margin
-    
-    // Check if we're likely to exceed the context window
-    if (totalRequestTokens > MODEL_MAX_TOKENS - SAFETY_BUFFER - MAX_OUTPUT_TOKENS) {
-      Logger.error('AIService', `Request would exceed context window (${totalRequestTokens} tokens > ${MODEL_MAX_TOKENS - SAFETY_BUFFER - MAX_OUTPUT_TOKENS} safe limit)`);
-      throw new Error(`Request would exceed context window (${totalRequestTokens} tokens). Please reduce the amount of data being sent.`);
-    }
-    
-    // Calculate available tokens, but cap at the model's max output limit
-    const availableTokens = Math.min(
-      MODEL_MAX_TOKENS - totalRequestTokens - SAFETY_BUFFER,
-      MAX_OUTPUT_TOKENS
-    );
-    
-    // Set max_tokens between 1000 and the available tokens
-    const max_tokens = Math.max(1000, Math.min(availableTokens, MAX_OUTPUT_TOKENS));
-    
-    Logger.debug('AIService', `API Request Details:`, {
-      model: "gpt-4o-mini",
-      systemPromptTokens: systemTokens,
-      userPromptTokens: userTokens,
-      totalRequestTokens: totalRequestTokens,
-      availableTokens: availableTokens,
-      max_tokens: max_tokens,
-      temperature: 0.3
-    });
-    
-    Logger.info('AIService', `Using API key (masked): ${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 4)}`);
-    
-    const requestStartTime = Date.now();
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-=======
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: "gpt-3.5-turbo",
->>>>>>> Stashed changes
+        model: OPENAI_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: 2000
+        max_tokens: MAX_TOKENS
       },
       {
         headers: {
@@ -974,21 +906,6 @@ export const callOpenAI = async (
 export const testAIConnection = async (): Promise<boolean> => {
   try {
     const apiKey = getApiKey();
-<<<<<<< Updated upstream
-    if (!apiKey) {
-      return false;
-    }
-
-    const response = await fetch('https://api.openai.com/v1/models', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error('Error testing AI connection:', error);
-=======
     
     if (!isValidApiKey(apiKey)) {
       return false;
@@ -997,7 +914,7 @@ export const testAIConnection = async (): Promise<boolean> => {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: "gpt-3.5-turbo",
+        model: OPENAI_MODEL,
         messages: [
           { role: "system", content: "You are a helpful assistant." },
           { role: "user", content: "Say hello!" }
@@ -1016,7 +933,6 @@ export const testAIConnection = async (): Promise<boolean> => {
     return response.status === 200;
   } catch (error) {
     Logger.error('AIService', `API connection test failed: ${error}`);
->>>>>>> Stashed changes
     return false;
   }
 };

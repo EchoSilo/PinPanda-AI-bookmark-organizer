@@ -1,17 +1,4 @@
 // Configuration constants
-<<<<<<< Updated upstream
-export const getApiKey = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('openai_api_key') || '';
-  }
-  return '';
-};
-
-// Don't store a static value for API_KEY since it might change
-// Instead, always call getApiKey() when needed
-
-=======
->>>>>>> Stashed changes
 export const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes
 export const MAX_TOKENS_PER_CHUNK = 8000;
 export const MAX_BOOKMARKS_PER_LARGE_FOLDER_CHUNK = 20;
@@ -44,6 +31,10 @@ export const isValidApiKey = (key: string): boolean => {
   
   return isValid;
 };
+
+// OpenAI configuration
+export const OPENAI_MODEL = 'gpt-3.5-turbo';
+export const MAX_TOKENS = 2000;
 
 // System prompts
 export const CATEGORIZATION_SYSTEM_PROMPT = `
@@ -144,34 +135,4 @@ CATEGORIZATION STRATEGY:
 5. Assign each bookmark to the most specific appropriate category
 6. Ensure no category is too large or too small
 7. Review and refine the structure for balance and usability
-<<<<<<< Updated upstream
 `;
-
-export const OPENAI_MODEL = 'gpt-3.5-turbo';
-export const MAX_TOKENS = 2000;
-
-// Add a function to check if the API key is valid
-export const isValidApiKey = (key: string): boolean => {
-  // Clean the key if it hasn't been cleaned already
-  const cleanKey = key.replace(/\s+/g, '');
-  
-  const isValid = Boolean(
-    cleanKey && 
-    typeof cleanKey === 'string' && 
-    cleanKey.trim().length > 20 && 
-    (cleanKey.startsWith('sk-') || cleanKey.startsWith('sk-proj-'))
-  );
-  
-  console.log('API Key validation:', {
-    exists: !!cleanKey,
-    isString: typeof cleanKey === 'string',
-    hasLength: cleanKey && cleanKey.trim().length > 20,
-    startsWithPrefix: cleanKey && (cleanKey.startsWith('sk-') || cleanKey.startsWith('sk-proj-')),
-    isValid: isValid
-  });
-  
-  return isValid;
-}; 
-=======
-`; 
->>>>>>> Stashed changes

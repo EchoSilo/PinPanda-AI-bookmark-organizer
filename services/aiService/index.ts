@@ -82,6 +82,21 @@ const createMinimalResult = (bookmarks: Bookmark[]): OrganizedBookmarks => {
   };
 };
 
+// Add this helper function at the top of the file after imports
+const getPandaProgressMessage = (start: number, end: number, total: number): string => {
+  const messages = [
+    `🐼 Munching through bamboo batch ${start} to ${end} of ${total}...`,
+    `🎋 Climbing up the data tree: branches ${start} to ${end} of ${total}...`,
+    `🐾 Paws-ing at checkpoints ${start} to ${end} of ${total}...`,
+    `😴 Napping through sections ${start} to ${end} of ${total}...`,
+    `🎍 Rolling through data shoots ${start} to ${end} of ${total}...`,
+    `🌿 Snacking on bookmark leaves ${start} to ${end} of ${total}...`,
+    `🏮 Exploring data forests ${start} to ${end} of ${total}...`,
+    `🎋 Bamboo-zling through chunks ${start} to ${end} of ${total}...`
+  ];
+  return messages[Math.floor(Math.random() * messages.length)];
+};
+
 // Main function to organize bookmarks
 export const organizeBookmarks = async (
   bookmarks: Bookmark[],
@@ -165,7 +180,7 @@ export const organizeBookmarks = async (
     if (progressCallback) {
       progressCallback({
         step: 1,
-        message: 'Preparing bookmarks for AI processing...',
+        message: '🧠 Training AI on your bookmark collection...',
         progress: 15
       });
     }
@@ -190,8 +205,8 @@ export const organizeBookmarks = async (
       progressCallback({
         step: 1,
         message: isSingleChunk 
-          ? 'Sending bookmarks to AI for categorization...' 
-          : `Processing in ${chunks.length} chunks with parallel requests...`,
+          ? '🤖 AI is analyzing your bookmarks...' 
+          : `✨ Processing ${chunks.length} batches in parallel for faster results...`,
         progress: 20
       });
     }
@@ -293,9 +308,9 @@ export const organizeBookmarks = async (
     // Update progress
     if (progressCallback) {
       progressCallback({
-        step: 2,
-        message: `Bookmark organization complete! Created ${categories.length} categories.`,
-        progress: 100
+        step: 1,
+        message: `🎨 Creating your personalized bookmark organization with ${categories.length} categories`,
+        progress: 80
       });
     }
     
@@ -566,7 +581,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
     if (progressCallback) {
       progressCallback({
         step: 1,
-        message: `Categorization complete: ${categoryCount} categories created`,
+        message: `🎯 Processed ${totalBookmarksAssigned} bookmarks across ${categoryCount} categories`,
         progress: 80
       });
     }
@@ -612,7 +627,7 @@ const processMultipleChunks = async (
       if (progressCallback) {
         progressCallback({
           step: 1,
-          message: `Processing chunks ${i+1} to ${Math.min(i+MAX_CONCURRENT_REQUESTS, chunks.length)} of ${chunks.length}...`,
+          message: getPandaProgressMessage(i+1, Math.min(i+MAX_CONCURRENT_REQUESTS, chunks.length), chunks.length),
           progress: 20 + Math.round((i / chunks.length) * 60)
         });
       }
@@ -649,7 +664,9 @@ const processMultipleChunks = async (
       if (progressCallback) {
         progressCallback({
           step: 1,
-          message: `Processed ${processedChunks} of ${chunks.length} chunks...`,
+          message: processedChunks === chunks.length 
+            ? '🐼 Taking a well-deserved bamboo break after processing all chunks!'
+            : `🐾 Panda progress: ${processedChunks} of ${chunks.length} batches sorted - chomping along!`,
           progress: 20 + Math.round((processedChunks / chunks.length) * 60)
         });
       }
@@ -710,7 +727,7 @@ const processMultipleChunks = async (
     if (progressCallback) {
       progressCallback({
         step: 1,
-        message: `Merged ${categorizations.length} chunk results into ${categoryCount} categories`,
+        message: `🎋 PinPanda has organized your bookmarks into ${categoryCount} cozy bamboo groves`,
         progress: 80
       });
     }

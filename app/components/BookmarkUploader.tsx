@@ -107,7 +107,7 @@ export default function BookmarkUploader({ onBookmarksUploaded }: BookmarkUpload
         // For large files, use chunked processing
         if (content.length > 500000) { // 500KB
           Logger.info('BookmarkUploader', `Large file detected (${Math.round(content.length / 1024)} KB), using chunked processing`);
-          setProcessingStatus('Processing large bookmark file in chunks...');
+          setProcessingStatus('📚 Processing your large bookmark collection in chunks...');
           
           try {
             const bookmarks = await processLargeFile(content, folderStructure);
@@ -145,7 +145,7 @@ export default function BookmarkUploader({ onBookmarksUploaded }: BookmarkUpload
             // Update progress for large files
             if (i % 100 === 0) {
               setProcessingProgress(Math.round((i / lines.length) * 100));
-              setProcessingStatus(`Processing line ${i} of ${lines.length}...`);
+              setProcessingStatus(`📖 Reading bookmark ${i} of ${lines.length}...`);
             }
             
             // Check if this line contains a folder marker
@@ -270,7 +270,7 @@ export default function BookmarkUploader({ onBookmarksUploaded }: BookmarkUpload
             // Update progress
             if (i % 100 === 0) {
               setProcessingProgress(Math.round((i / lines.length) * 100));
-              setProcessingStatus(`Processing line ${i} of ${lines.length}...`);
+              setProcessingStatus(`📖 Reading bookmark ${i} of ${lines.length}...`);
             }
             
             // Check if this line contains a folder marker

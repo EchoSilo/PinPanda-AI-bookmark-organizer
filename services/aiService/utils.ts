@@ -15,7 +15,7 @@ export const findDuplicateBookmarks = (
     if (index % 50 === 0 && progressCallback) {
       progressCallback({ 
         step: 0, 
-        message: `Scanning for duplicates (${index}/${total})`,
+        message: `🔍 Scanning for duplicates (${index}/${total})`,
         bookmarksProcessed: index,
         progress: Math.round((index / total) * 10) // Progress from 0-10%
       });
@@ -37,7 +37,7 @@ export const findDuplicateBookmarks = (
   if (progressCallback) {
     progressCallback({ 
       step: 0, 
-      message: `Found ${duplicates.length} duplicate bookmarks`,
+      message: `✨ Found ${duplicates.length} duplicate bookmarks to clean up`,
       bookmarksProcessed: total,
       duplicatesFound: duplicates.length,
       progress: 10 // 10% progress after duplicate detection

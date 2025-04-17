@@ -338,6 +338,8 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
     setVisibleCategories(currentCategories.map((_, index) => index));
     // Reset loaded bookmarks when page changes
     setLoadedBookmarks({});
+  }, [currentCategories]);es
+    setLoadedBookmarks({});
   }, [currentCategories]);
   
   const toggleCategory = useCallback((index: number) => {

@@ -76,21 +76,32 @@ export default function BookmarkSearch({ bookmarks, onSearchResults }: BookmarkS
         }
       };
 
-      // Attempt AI-powered search if there are enough results
+      // If no matching bookmarks, still show empty results
+      if (basicResults.categories[0].bookmarks.length === 0) {
+        basicResults.categories[0].bookmarks = [];
+      }
+
       try {
-        // Perform AI-powered search
-        const aiResults = await aiService.searchBookmarks(bookmarks, query);
-        if (aiResults.categories.length > 0) {
-          onSearchResults(aiResults);
-          Logger.info('BookmarkSearch', `Search completed with ${aiResults.categories.length} categories`);
+        // Perform AI-powered search only if we have results to work with
+        if (basicResults.categories[0].bookmarks.length > 0) {
+          const aiResults = await aiService.searchBookmarks(bookmarks, query);
+          if (aiResults.categories.length > 0) {
+            onSearchResults(aiResults);
+            Logger.info('BookmarkSearch', `Search completed with ${aiResults.categories.length} categories`);
+          } else {
+            onSearchResults(basicResults);
+            Logger.info('BookmarkSearch', 'Using basic search results');
+          }
         } else {
+          // If no results, just use the empty basic results
           onSearchResults(basicResults);
-          Logger.info('BookmarkSearch', 'Using basic search results');
+          Logger.info('BookmarkSearch', 'No results found for query');
         }
       } catch (error) {
         Logger.error('BookmarkSearch', 'Error during AI search, falling back to basic search', error);
         onSearchResults(basicResults);
       }
+</old_str>
     } catch (error) {
       Logger.error('BookmarkSearch', 'Error during search', error);
       toast({

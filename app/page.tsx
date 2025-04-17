@@ -44,6 +44,7 @@ import BookmarkUploader from './components/BookmarkUploader';
 import AIProcessingScreen from './components/AIProcessingScreen';
 import BookmarkOrganizer from './components/BookmarkOrganizer';
 import AIResponseViewer from './components/AIResponseViewer';
+import BookmarkSearch from './components/BookmarkSearch';
 import APIKeyInput from './components/APIKeyInput';
 import DebugPanel from './components/DebugPanel';
 import PinPandaLogo from './components/PinPandaLogo';
@@ -284,27 +285,35 @@ export default function Home() {
         )}
 
         {organizedBookmarks && !isProcessing && (
-          <Tabs variant="enclosed" colorScheme="green">
-            <TabList>
-              <Tab>Organized Bookmarks</Tab>
-              {showDebugger && aiResponses.length > 0 && (
-                <Tab>AI Responses ({aiResponses.length})</Tab>
-              )}
-            </TabList>
-            <TabPanels>
-              <TabPanel p={0} pt={4}>
-                <BookmarkOrganizer 
-                  organizedBookmarks={organizedBookmarks} 
-                  onReset={handleReset}
-                />
-              </TabPanel>
-              {showDebugger && aiResponses.length > 0 && (
+          <>
+            {bookmarks && (
+              <BookmarkSearch 
+                bookmarks={bookmarks} 
+                onSearchResults={setOrganizedBookmarks} 
+              />
+            )}
+            <Tabs variant="enclosed" colorScheme="green">
+              <TabList>
+                <Tab>Organized Bookmarks</Tab>
+                {showDebugger && aiResponses.length > 0 && (
+                  <Tab>AI Responses ({aiResponses.length})</Tab>
+                )}
+              </TabList>
+              <TabPanels>
                 <TabPanel p={0} pt={4}>
-                  <AIResponseViewer responses={aiResponses} />
+                  <BookmarkOrganizer 
+                    organizedBookmarks={organizedBookmarks} 
+                    onReset={handleReset}
+                  />
                 </TabPanel>
-              )}
-            </TabPanels>
-          </Tabs>
+                {showDebugger && aiResponses.length > 0 && (
+                  <TabPanel p={0} pt={4}>
+                    <AIResponseViewer responses={aiResponses} />
+                  </TabPanel>
+                )}
+              </TabPanels>
+            </Tabs>
+          </>
         )}
 
         {/* Debug Panel Toggle */}

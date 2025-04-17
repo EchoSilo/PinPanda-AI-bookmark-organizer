@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { ColorModeScript } from "./color-mode-script";
+import PinPandaLogo from './components/PinPandaLogo';
+import ProfileManager from './components/ProfileManager';
 
 const inter = Inter({
   subsets: ["latin"],

@@ -1180,3 +1180,64 @@ const makeOpenAIRequest = async (
     return data.choices[0]?.message?.content;
   }
 };
+export const searchBookmarks = async (
+  bookmarks: Bookmark[],
+  query: string,
+  apiKey?: string
+): Promise<OrganizedBookmarks> => {
+  try {
+    Logger.info("AIService", `Starting AI-powered search for query: "${query}"`);
+    
+    // First perform a basic search to filter bookmarks
+    const filteredBookmarks = bookmarks.filter(bookmark =>
+      bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
+      bookmark.url.toLowerCase().includes(query.toLowerCase())
+    );
+
+    Logger.info("AIService", `Found ${filteredBookmarks.length} bookmarks matching the basic search`);
+    
+    // For small result sets, just return basic categorization
+    if (filteredBookmarks.length <= 5) {
+      return {
+        categories: [
+          {
+            name: `Search Results for "${query}"`,
+            bookmarks: filteredBookmarks
+          }
+        ],
+        invalidBookmarks: [],
+        duplicateBookmarks: []
+      };
+    }
+    
+    // For larger result sets, use AI to categorize the results
+    Logger.info("AIService", `Using AI to organize ${filteredBookmarks.length} search results`);
+    
+    // Use the existing organizeBookmarks function to categorize the results
+    const organizedResults = await organizeBookmarks(filteredBookmarks, apiKey);
+    
+    // Rename the first category to indicate these are search results
+    if (organizedResults.categories.length > 0) {
+      organizedResults.categories[0].name = `Top Results for "${query}"`;
+    }
+    
+    return organizedResults;
+  } catch (error) {
+    Logger.error("AIService", "Error during AI-powered search", error);
+    
+    // Fallback to basic search if AI fails
+    return {
+      categories: [
+        {
+          name: `Search Results for "${query}"`,
+          bookmarks: bookmarks.filter(bookmark =>
+            bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
+            bookmark.url.toLowerCase().includes(query.toLowerCase())
+          )
+        }
+      ],
+      invalidBookmarks: [],
+      duplicateBookmarks: []
+    };
+  }
+};

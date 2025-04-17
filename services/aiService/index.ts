@@ -1206,7 +1206,13 @@ export const searchBookmarks = async (
           }
         ],
         invalidBookmarks: [],
-        duplicateBookmarks: []
+        duplicateBookmarks: [],
+        duplicateStats: { 
+          uniqueUrls: filteredBookmarks.length,
+          urlsWithDuplicates: 0,
+          totalDuplicateReferences: 0,
+          mostDuplicatedUrls: []
+        }
       };
     }
     
@@ -1214,7 +1220,7 @@ export const searchBookmarks = async (
     Logger.info("AIService", `Using AI to organize ${filteredBookmarks.length} search results`);
     
     // Use the existing organizeBookmarks function to categorize the results
-    const organizedResults = await organizeBookmarks(filteredBookmarks, apiKey);
+    const organizedResults = await organizeBookmarks(filteredBookmarks);
     
     // Rename the first category to indicate these are search results
     if (organizedResults.categories.length > 0) {
@@ -1226,18 +1232,26 @@ export const searchBookmarks = async (
     Logger.error("AIService", "Error during AI-powered search", error);
     
     // Fallback to basic search if AI fails
+    const basicResults = bookmarks.filter(bookmark =>
+      bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
+      bookmark.url.toLowerCase().includes(query.toLowerCase())
+    );
+    
     return {
       categories: [
         {
           name: `Search Results for "${query}"`,
-          bookmarks: bookmarks.filter(bookmark =>
-            bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
-            bookmark.url.toLowerCase().includes(query.toLowerCase())
-          )
+          bookmarks: basicResults
         }
       ],
       invalidBookmarks: [],
-      duplicateBookmarks: []
+      duplicateBookmarks: [],
+      duplicateStats: {
+        uniqueUrls: basicResults.length,
+        urlsWithDuplicates: 0,
+        totalDuplicateReferences: 0,
+        mostDuplicatedUrls: []
+      }
     };
   }
 };

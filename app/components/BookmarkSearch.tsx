@@ -47,7 +47,6 @@ export default function BookmarkSearch({ bookmarks, onSearchResults }: BookmarkS
 
       // Get current profile for API key if available
       const currentProfile = ProfileService.getCurrentProfile();
-      const apiKey = currentProfile?.apiKey;
       
       // Add to search history if profile exists
       if (currentProfile) {
@@ -56,11 +55,42 @@ export default function BookmarkSearch({ bookmarks, onSearchResults }: BookmarkS
         ProfileService.saveProfile(currentProfile);
       }
 
-      // Perform AI-powered search
-      const results = await aiService.searchBookmarks(bookmarks, query, apiKey);
-      
-      onSearchResults(results);
-      Logger.info('BookmarkSearch', `Search completed with ${results.categories.length} categories`);
+      // Basic search as fallback
+      const basicResults = {
+        categories: [
+          {
+            name: `Search Results for "${query}"`,
+            bookmarks: bookmarks.filter(bookmark =>
+              bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
+              bookmark.url.toLowerCase().includes(query.toLowerCase())
+            )
+          }
+        ],
+        invalidBookmarks: [],
+        duplicateBookmarks: [],
+        duplicateStats: {
+          uniqueUrls: 0,
+          urlsWithDuplicates: 0,
+          totalDuplicateReferences: 0,
+          mostDuplicatedUrls: []
+        }
+      };
+
+      // Attempt AI-powered search if there are enough results
+      try {
+        // Perform AI-powered search
+        const aiResults = await aiService.searchBookmarks(bookmarks, query);
+        if (aiResults.categories.length > 0) {
+          onSearchResults(aiResults);
+          Logger.info('BookmarkSearch', `Search completed with ${aiResults.categories.length} categories`);
+        } else {
+          onSearchResults(basicResults);
+          Logger.info('BookmarkSearch', 'Using basic search results');
+        }
+      } catch (error) {
+        Logger.error('BookmarkSearch', 'Error during AI search, falling back to basic search', error);
+        onSearchResults(basicResults);
+      }
     } catch (error) {
       Logger.error('BookmarkSearch', 'Error during search', error);
       toast({

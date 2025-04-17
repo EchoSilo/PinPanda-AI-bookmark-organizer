@@ -50,6 +50,20 @@ export interface ProcessingProgress {
       indices: number[];
     }>;
   };
+
+
+export interface Profile {
+  id: string;
+  username: string;
+  bookmarkCategories: BookmarkCategory[];
+  apiKey?: string;
+  searchHistory?: string[];
+  settings?: {
+    defaultView?: string;
+    aiSearchEnabled?: boolean;
+  };
+}
+
 }
 
 export interface AIResponse {

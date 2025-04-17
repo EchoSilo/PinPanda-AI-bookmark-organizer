@@ -104,10 +104,6 @@ export default function BookmarkSearch({ bookmarks, onSearchResults }: BookmarkS
     } catch (error) {
       Logger.error('BookmarkSearch', 'Error during search', error);
       toast({
-</old_str>
-    } catch (error) {
-      Logger.error('BookmarkSearch', 'Error during search', error);
-      toast({
         title: 'Search failed',
         description: 'An error occurred while searching your bookmarks',
         status: 'error',

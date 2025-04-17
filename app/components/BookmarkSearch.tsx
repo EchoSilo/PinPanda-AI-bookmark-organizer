@@ -101,6 +101,9 @@ export default function BookmarkSearch({ bookmarks, onSearchResults }: BookmarkS
         Logger.error('BookmarkSearch', 'Error during AI search, falling back to basic search', error);
         onSearchResults(basicResults);
       }
+    } catch (error) {
+      Logger.error('BookmarkSearch', 'Error during search', error);
+      toast({
 </old_str>
     } catch (error) {
       Logger.error('BookmarkSearch', 'Error during search', error);

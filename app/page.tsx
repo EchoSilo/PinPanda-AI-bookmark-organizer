@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -107,7 +108,6 @@ export default function Home() {
       console.error('Failed to log application start:', err);
     }
   }, []);
-</old_str>
 
   const checkConnection = async () => {
     setIsCheckingConnection(true);

@@ -19,7 +19,7 @@ import {
   FormLabel,
   Tooltip
 } from '@chakra-ui/react';
-import { FiSearch, FiZap } from 'react-icons/fi';
+import { FiSearch, FiZap, FiX } from 'react-icons/fi';
 import { Bookmark, OrganizedBookmarks } from '@/types';
 import * as aiService from '@/services/aiService';
 import * as ProfileService from '@/services/profileService';
@@ -205,6 +205,36 @@ const handleSearch = async () => {
     }
   }, [debouncedSearchTerm]);
 
+  const clearSearch = () => {
+    setQuery('');
+    setLastSearchTerm('');
+    // Reset to showing all bookmarks
+    onSearchResults({
+      categories: [
+        {
+          name: "All Bookmarks",
+          bookmarks: bookmarks
+        }
+      ],
+      invalidBookmarks: [],
+      duplicateBookmarks: [],
+      duplicateStats: {
+        uniqueUrls: bookmarks.length,
+        urlsWithDuplicates: 0,
+        totalDuplicateReferences: 0,
+        mostDuplicatedUrls: []
+      }
+    });
+    
+    toast({
+      title: 'Search cleared',
+      description: 'Showing all bookmarks',
+      status: 'info',
+      duration: 2000,
+      isClosable: true,
+    });
+  };
+
   return (
     <VStack width="100%" maxW="600px" mx="auto" mb={4} spacing={2}>
       <InputGroup size="md">
@@ -215,16 +245,34 @@ const handleSearch = async () => {
           onKeyPress={handleKeyPress}
           disabled={isSearching}
         />
-        <InputRightElement>
-          {isSearching ? (
-            <Spinner size="sm" color="blue.500" />
+        <InputRightElement width="4.5rem">
+          {query.trim() ? (
+            <HStack spacing={1}>
+              <IconButton
+                aria-label="Clear"
+                icon={<FiX />}
+                size="sm"
+                onClick={clearSearch}
+                mr={1}
+              />
+              {isSearching ? (
+                <Spinner size="sm" color="blue.500" />
+              ) : (
+                <IconButton
+                  aria-label="Search"
+                  icon={<FiSearch />}
+                  size="sm"
+                  onClick={handleSearch}
+                />
+              )}
+            </HStack>
           ) : (
             <IconButton
               aria-label="Search"
               icon={<FiSearch />}
               size="sm"
               onClick={handleSearch}
-              isDisabled={!query.trim()}
+              isDisabled={true}
             />
           )}
         </InputRightElement>

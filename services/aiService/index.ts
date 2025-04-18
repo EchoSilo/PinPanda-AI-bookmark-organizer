@@ -120,6 +120,31 @@ const getPandaProgressMessage = (
   return messages[Math.floor(Math.random() * messages.length)];
 };
 
+// Track the current processing state
+let processingState: {
+  isProcessing: boolean;
+  total: number;
+  current: number;
+  step: number;
+  message: string;
+  cancelToken?: { cancelled: boolean };
+} = {
+  isProcessing: false,
+  total: 0,
+  current: 0,
+  step: 0,
+  message: '',
+};
+
+// Function to cancel ongoing AI processing
+export const cancelOngoingProcess = (): void => {
+  if (processingState.isProcessing && processingState.cancelToken) {
+    Logger.info('AIService', 'Cancelling ongoing AI process');
+    processingState.cancelToken.cancelled = true;
+    processingState.message = 'Process cancelled by user';
+  }
+};
+
 // Main function to organize bookmarks
 export const organizeBookmarks = async (
   bookmarks: Bookmark[],
@@ -1110,7 +1135,7 @@ export const callOpenAI = async (
       Logger.info("AIService", "Request was canceled");
       throw new Error("Request was canceled");
     }
-    
+
     Logger.error("AIService", `OpenAI API call failed: ${error}`);
     throw error;
   }

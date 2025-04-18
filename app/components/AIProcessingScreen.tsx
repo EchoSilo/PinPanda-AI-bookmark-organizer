@@ -39,6 +39,7 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
   const [processingTime, setProcessingTime] = useState<number>(0);
   const [startTime] = useState<number>(Date.now());
   const toast = useToast();
+  const [searchTerm, setSearchTerm] = useState(''); // Added search term state
 
   // Update processing time every second
   useEffect(() => {
@@ -97,6 +98,12 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
         isClosable: true,
       });
     }
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm(''); // Clear the search term
+    // Add logic here to update the display to show all bookmarks.  This will depend on how your bookmarks are displayed.
+    // For example, you might have a function updateBookmarksDisplay(searchTerm) that you call here.
   };
 
   return (
@@ -242,6 +249,7 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
               >
                 Cancel Process
               </Button>
+              <Button onClick={handleClearSearch}>Clear Search</Button> {/* Added Clear Search button */}
             </HStack>
           </Box>
         </VStack>

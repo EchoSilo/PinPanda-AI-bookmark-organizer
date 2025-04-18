@@ -1028,7 +1028,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
       );
       retryCount++;
 
-      if (retryCount <= maxRetries) {
+            if (retryCount <= maxRetries) {
         Logger.info(
           "AIService",
           `Retrying chunk ${chunkIndex + 1} (attempt ${retryCount} of ${maxRetries})`,
@@ -1187,7 +1187,7 @@ export const searchBookmarks = async (
 ): Promise<OrganizedBookmarks> => {
   try {
     Logger.info("AIService", `Starting AI-powered search for query: "${query}"`);
-    
+
     // First perform a basic search to filter bookmarks
     const filteredBookmarks = bookmarks.filter(bookmark =>
       bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -1195,7 +1195,7 @@ export const searchBookmarks = async (
     );
 
     Logger.info("AIService", `Found ${filteredBookmarks.length} bookmarks matching the basic search`);
-    
+
     // For small result sets, just return basic categorization
     if (filteredBookmarks.length <= 5) {
       return {
@@ -1215,28 +1215,28 @@ export const searchBookmarks = async (
         }
       };
     }
-    
+
     // For larger result sets, use AI to categorize the results
     Logger.info("AIService", `Using AI to organize ${filteredBookmarks.length} search results`);
-    
+
     // Use the existing organizeBookmarks function to categorize the results
     const organizedResults = await organizeBookmarks(filteredBookmarks);
-    
+
     // Rename the first category to indicate these are search results
     if (organizedResults.categories.length > 0) {
       organizedResults.categories[0].name = `Top Results for "${query}"`;
     }
-    
+
     return organizedResults;
   } catch (error) {
     Logger.error("AIService", "Error during AI-powered search", error);
-    
+
     // Fallback to basic search if AI fails
     const basicResults = bookmarks.filter(bookmark =>
       bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
       bookmark.url.toLowerCase().includes(query.toLowerCase())
     );
-    
+
     return {
       categories: [
         {

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Box,
   VStack,
@@ -27,9 +27,12 @@ import {
   Icon,
   Tooltip,
   useToast,
-  Progress
+  Progress,
+  Input,
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react';
-import { FiFolder, FiExternalLink, FiCopy, FiAlertCircle, FiBarChart2, FiLayers, FiTag, FiDownload } from 'react-icons/fi';
+import { FiFolder, FiExternalLink, FiCopy, FiAlertCircle, FiBarChart2, FiLayers, FiTag, FiDownload, FiSearch } from 'react-icons/fi';
 import { OrganizedBookmarks, Bookmark } from '@/types';
 
 // Virtualized bookmark list component for large categories
@@ -313,33 +316,62 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
   const [visibleCategories, setVisibleCategories] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isExporting, setIsExporting] = useState(false);
   const [loadedBookmarks, setLoadedBookmarks] = useState<Record<number, boolean>>({});
-  const categoriesPerPage = 25;
+  const [isExporting, setIsExporting] = useState(false);
+  const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(25); // Initial load count
+  const containerRef = useRef<HTMLDivElement>(null);
+  const categoriesPerBatch = 25;
   const toast = useToast();
   
-  // Memoize sorted categories to avoid re-sorting on every render
-  const sortedCategories = useMemo(() => {
-    return [...organizedBookmarks.categories].sort((a, b) => a.name.localeCompare(b.name));
-  }, [organizedBookmarks.categories]);
+  // Memoize filtered and sorted categories to avoid re-sorting on every render
+  const sortedFilteredCategories = useMemo(() => {
+    // Filter categories based on search term if any
+    const filtered = searchTerm 
+      ? organizedBookmarks.categories.filter(category => 
+          category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          category.bookmarks.some(bookmark => 
+            bookmark.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            bookmark.url.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        )
+      : organizedBookmarks.categories;
+    
+    // Sort alphabetically
+    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+  }, [organizedBookmarks.categories, searchTerm]);
   
-  // Implement pagination for categories
-  const totalPages = Math.ceil(sortedCategories.length / categoriesPerPage);
-  
-  // Get current page categories
+  // Get visible categories based on current count
   const currentCategories = useMemo(() => {
-    const startIndex = (currentPage - 1) * categoriesPerPage;
-    return sortedCategories.slice(startIndex, startIndex + categoriesPerPage);
-  }, [sortedCategories, currentPage, categoriesPerPage]);
+    return sortedFilteredCategories.slice(0, visibleCategoriesCount);
+  }, [sortedFilteredCategories, visibleCategoriesCount]);
   
-  // Initialize visible categories on component mount and when page changes
+  // Initialize visible categories on component mount
   useEffect(() => {
-    // Only show the first 25 categories initially to reduce memory usage
     setVisibleCategories(currentCategories.map((_, index) => index));
-    // Reset loaded bookmarks when page changes
+    // Reset loaded bookmarks when categories change
     setLoadedBookmarks({});
+    setExpandedCategories(new Set());
   }, [currentCategories]);
+  
+  // Handle scrolling to load more categories
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    // If scrolled near the bottom, load more categories
+    if (scrollHeight - scrollTop - clientHeight < 300 && visibleCategoriesCount < sortedFilteredCategories.length) {
+      setVisibleCategoriesCount(prev => Math.min(prev + categoriesPerBatch, sortedFilteredCategories.length));
+    }
+  }, [visibleCategoriesCount, sortedFilteredCategories.length]);
+  
+  // Add scroll event listener
+  useEffect(() => {
+    const currentRef = containerRef.current;
+    if (currentRef) {
+      currentRef.addEventListener('scroll', handleScroll);
+      return () => currentRef.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
   
   const toggleCategory = useCallback((index: number) => {
     const newExpandedCategories = new Set(expandedCategories);
@@ -357,16 +389,6 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
   const areBookmarksLoaded = useCallback((index: number) => {
     return loadedBookmarks[index] === true;
   }, [loadedBookmarks]);
-  
-  // Pagination controls
-  const goToPage = useCallback((page: number) => {
-    setCurrentPage(page);
-    // Reset expanded categories when changing pages
-    setExpandedCategories(new Set());
-    // Reset loaded bookmarks when changing pages
-    setLoadedBookmarks({});
-    window.scrollTo(0, 0);
-  }, []);
   
   // Convert Set to array for Accordion index prop
   const expandedIndicesArray = Array.from(expandedCategories).map(Number);
@@ -449,188 +471,136 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
       {/* Dashboard Summary */}
       <DashboardSummary organizedBookmarks={organizedBookmarks} />
       
-      {/* Pagination Info */}
-      <Flex justify="space-between" align="center">
-        <Text>
-          Showing page {currentPage} of {totalPages} ({sortedCategories.length} categories)
-        </Text>
-        <HStack>
-          <Button
-            colorScheme="green"
-            leftIcon={<Icon as={FiDownload} />}
-            onClick={handleExport}
-            isLoading={isExporting}
-            loadingText="Exporting"
-            size="sm"
-          >
-            Export Bookmarks
-          </Button>
-          <Button 
-            size="sm" 
-            onClick={() => goToPage(currentPage - 1)} 
-            isDisabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          <Text>{currentPage} / {totalPages}</Text>
-          <Button 
-            size="sm" 
-            onClick={() => goToPage(currentPage + 1)} 
-            isDisabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
-        </HStack>
+      {/* Search and Export Controls */}
+      <Flex justify="space-between" align="center" mb={2}>
+        <InputGroup maxW="400px">
+          <InputLeftElement pointerEvents="none">
+            <Icon as={FiSearch} color="gray.300" />
+          </InputLeftElement>
+          <Input 
+            placeholder="Search categories and bookmarks..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </InputGroup>
+        <Button
+          colorScheme="green"
+          leftIcon={<Icon as={FiDownload} />}
+          onClick={handleExport}
+          isLoading={isExporting}
+          loadingText="Exporting"
+          size="sm"
+        >
+          Export Bookmarks
+        </Button>
       </Flex>
       
-      {/* Categories */}
-      <Accordion 
-        allowMultiple 
-        index={expandedIndicesArray}
-      >
-        {currentCategories.map((category, index) => (
-          <AccordionItem key={index}>
-            <AccordionButton 
-              py={2} 
-              onClick={() => toggleCategory(index)}
-              _hover={{ bg: 'gray.50' }}
-            >
-              <HStack flex="1" textAlign="left" spacing={2}>
-                <Icon as={FiFolder} color="green.500" />
-                <Text fontWeight="medium">{category.name}</Text>
-                <Badge colorScheme="green" ml={2}>
-                  {category.bookmarks.length}
-                </Badge>
-              </HStack>
-              <AccordionIcon />
-            </AccordionButton>
-            
-            <AccordionPanel pb={4}>
-              {areBookmarksLoaded(index) ? (
-                category.bookmarks.length > 100 ? (
-                  // Use virtualized list for large categories
-                  <VirtualizedBookmarkList bookmarks={category.bookmarks} />
-                ) : (
-                  // Use regular list for smaller categories
-                  <VStack align="stretch" spacing={2}>
-                    {category.bookmarks.map((bookmark, bookmarkIndex) => (
-                      <Box 
-                        key={bookmarkIndex} 
-                        p={2} 
-                        borderWidth="1px" 
-                        borderRadius="md"
-                        _hover={{ bg: 'gray.50' }}
-                      >
-                        <Flex justify="space-between" align="center">
-                          <Link 
-                            href={bookmark.url} 
-                            isExternal 
-                            color="blue.600" 
-                            fontWeight="medium"
-                            maxWidth="80%"
-                            isTruncated
-                          >
-                            <HStack>
-                              <Text>{bookmark.title || bookmark.url}</Text>
-                              <Icon as={FiExternalLink} boxSize={3} />
-                            </HStack>
-                          </Link>
-                          {bookmark.folder && (
-                            <Tooltip label={`Original folder: ${bookmark.folder}`}>
-                              <Badge colorScheme="gray" fontSize="xs">
-                                {bookmark.folder.split('/').pop()}
-                              </Badge>
-                            </Tooltip>
-                          )}
-                        </Flex>
-                      </Box>
-                    ))}
-                  </VStack>
-                )
-              ) : (
-                <Box textAlign="center" py={4}>
-                  <Text color="gray.500">Loading {category.bookmarks.length} bookmarks...</Text>
-                  <Progress size="xs" isIndeterminate colorScheme="green" mt={2} />
-                </Box>
-              )}
-            </AccordionPanel>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      {/* Status Info */}
+      <Box>
+        <Text color="gray.600">
+          Showing {currentCategories.length} of {sortedFilteredCategories.length} categories
+          {searchTerm && ` (filtered by "${searchTerm}")`}
+        </Text>
+      </Box>
       
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <Flex justify="center" mt={4}>
-          <HStack>
-            <Button 
-              size="sm" 
-              onClick={() => goToPage(1)} 
-              isDisabled={currentPage === 1}
-            >
-              First
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={() => goToPage(currentPage - 1)} 
-              isDisabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            
-            {/* Page numbers - optimized to render fewer buttons */}
-            {useMemo(() => {
-              // Calculate which page numbers to show
-              const pageNumbers: number[] = [];
+      {/* Categories with Lazy Loading */}
+      <Box 
+        ref={containerRef} 
+        height="70vh" 
+        overflowY="auto" 
+        borderWidth="1px" 
+        borderRadius="md"
+        p={2}
+      >
+        <Accordion 
+          allowMultiple 
+          index={expandedIndicesArray}
+        >
+          {currentCategories.map((category, index) => (
+            <AccordionItem key={index} borderBottomWidth={index === currentCategories.length - 1 ? "0" : "1px"}>
+              <AccordionButton 
+                py={2} 
+                onClick={() => toggleCategory(index)}
+                _hover={{ bg: 'gray.50' }}
+              >
+                <HStack flex="1" textAlign="left" spacing={2}>
+                  <Icon as={FiFolder} color="green.500" />
+                  <Text fontWeight="medium">{category.name}</Text>
+                  <Badge colorScheme="green" ml={2}>
+                    {category.bookmarks.length}
+                  </Badge>
+                </HStack>
+                <AccordionIcon />
+              </AccordionButton>
               
-              if (totalPages <= 5) {
-                // Show all pages if 5 or fewer
-                for (let i = 1; i <= totalPages; i++) {
-                  pageNumbers.push(i);
-                }
-              } else if (currentPage <= 3) {
-                // Near the start
-                pageNumbers.push(1, 2, 3, 4, 5);
-              } else if (currentPage >= totalPages - 2) {
-                // Near the end
-                for (let i = totalPages - 4; i <= totalPages; i++) {
-                  pageNumbers.push(i);
-                }
-              } else {
-                // In the middle
-                for (let i = currentPage - 2; i <= currentPage + 2; i++) {
-                  pageNumbers.push(i);
-                }
-              }
-              
-              return pageNumbers.map(pageNum => (
-                <Button 
-                  key={pageNum} 
-                  size="sm" 
-                  colorScheme={currentPage === pageNum ? "green" : "gray"}
-                  onClick={() => goToPage(pageNum)}
-                >
-                  {pageNum}
-                </Button>
-              ));
-            }, [currentPage, totalPages, goToPage])}
-            
-            <Button 
-              size="sm" 
-              onClick={() => goToPage(currentPage + 1)} 
-              isDisabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={() => goToPage(totalPages)} 
-              isDisabled={currentPage === totalPages}
-            >
-              Last
-            </Button>
-          </HStack>
-        </Flex>
-      )}
+              <AccordionPanel pb={4}>
+                {areBookmarksLoaded(index) ? (
+                  category.bookmarks.length > 100 ? (
+                    // Use virtualized list for large categories
+                    <VirtualizedBookmarkList bookmarks={category.bookmarks} />
+                  ) : (
+                    // Use regular list for smaller categories
+                    <VStack align="stretch" spacing={2}>
+                      {category.bookmarks.map((bookmark, bookmarkIndex) => (
+                        <Box 
+                          key={bookmarkIndex} 
+                          p={2} 
+                          borderWidth="1px" 
+                          borderRadius="md"
+                          _hover={{ bg: 'gray.50' }}
+                        >
+                          <Flex justify="space-between" align="center">
+                            <Link 
+                              href={bookmark.url} 
+                              isExternal 
+                              color="blue.600" 
+                              fontWeight="medium"
+                              maxWidth="80%"
+                              isTruncated
+                            >
+                              <HStack>
+                                <Text>{bookmark.title || bookmark.url}</Text>
+                                <Icon as={FiExternalLink} boxSize={3} />
+                              </HStack>
+                            </Link>
+                            {bookmark.folder && (
+                              <Tooltip label={`Original folder: ${bookmark.folder}`}>
+                                <Badge colorScheme="gray" fontSize="xs">
+                                  {bookmark.folder.split('/').pop()}
+                                </Badge>
+                              </Tooltip>
+                            )}
+                          </Flex>
+                        </Box>
+                      ))}
+                    </VStack>
+                  )
+                ) : (
+                  <Box textAlign="center" py={4}>
+                    <Text color="gray.500">Loading {category.bookmarks.length} bookmarks...</Text>
+                    <Progress size="xs" isIndeterminate colorScheme="green" mt={2} />
+                  </Box>
+                )}
+              </AccordionPanel>
+            </AccordionItem>
+          ))}
+        </Accordion>
+        
+        {/* Loading indicator for more categories */}
+        {visibleCategoriesCount < sortedFilteredCategories.length && (
+          <Box textAlign="center" py={4}>
+            <Text color="gray.500">
+              Showing {visibleCategoriesCount} of {sortedFilteredCategories.length} categories
+            </Text>
+            <Progress 
+              size="xs" 
+              value={(visibleCategoriesCount / sortedFilteredCategories.length) * 100} 
+              colorScheme="green" 
+              mt={2}
+            />
+          </Box>
+        )}
+      </Box>
       
       <Box textAlign="center" mt={4}>
         <Button colorScheme="red" onClick={onReset}>
@@ -639,4 +609,4 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
       </Box>
     </VStack>
   );
-} 
+}

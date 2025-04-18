@@ -452,10 +452,8 @@ const FolderTree = ({
   };
   
   // Auto-expand folders containing search results
-  const { setExpandedFolders } = props; // Access from props
-  
   React.useEffect(() => {
-    if (searchResultFolders && searchResultFolders.length > 0 && setExpandedFolders) {
+    if (searchResultFolders && searchResultFolders.length > 0) {
       // Expand all parent folders of search result folders
       const foldersToExpand = new Set<string>();
       

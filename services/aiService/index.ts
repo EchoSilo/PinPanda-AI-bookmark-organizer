@@ -138,19 +138,29 @@ let processingState: {
 
 // Function to cancel ongoing AI processing
 export const cancelOngoingProcess = (): void => {
+  Logger.info('AIService', 'Cancelling all ongoing AI processes');
+  
+  // Cancel the processing state
   if (processingState.isProcessing && processingState.cancelToken) {
-    Logger.info('AIService', 'Cancelling ongoing AI process');
     processingState.cancelToken.cancelled = true;
     processingState.message = 'Process cancelled by user';
   }
   
+  // Reset processing state completely
+  processingState.isProcessing = false;
+  
+  // Cancel any ongoing API requests
   if (cancelController) {
-    Logger.info("AIService", "Canceling ongoing process");
+    Logger.info("AIService", "Canceling ongoing API requests");
     cancelController.abort();
     cancelController = null;
-  } else {
-    Logger.info("AIService", "No ongoing process to cancel");
   }
+  
+  // Create a new abort controller for any pending operations
+  const globalController = new AbortController();
+  globalController.abort();
+  
+  Logger.info("AIService", "All processes have been terminated");
 };
 
 // Main function to organize bookmarks

@@ -87,13 +87,20 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
       await cancelOngoingProcess();
       toast({
         title: 'Process Cancelled',
+        description: 'Returning to upload screen',
         status: 'success',
         isClosable: true,
       });
+      
+      // Notify parent component to reset the state and return to upload screen
+      // We need to use window event to communicate with parent component
+      window.dispatchEvent(new CustomEvent('resetBookmarkProcess', {
+        detail: { message: 'Process cancelled by user' }
+      }));
     } catch (error) {
       toast({
         title: 'Error Cancelling Process',
-        description: error.message,
+        description: error.message || 'An error occurred while cancelling',
         status: 'error',
         isClosable: true,
       });

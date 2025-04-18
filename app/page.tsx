@@ -67,7 +67,7 @@ export default function Home() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
-  // Log application startup
+  // Log application startup and set up event listeners
   useEffect(() => {
     try {
       // Set log level to DEBUG for more detailed logging
@@ -75,10 +75,39 @@ export default function Home() {
       info('App', 'Application started with DEBUG log level');
       // Check connection on startup
       checkConnection();
+      
+      // Add event listener for cancel process
+      const handleResetProcess = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        info('App', `Process reset triggered: ${customEvent.detail?.message || 'No message'}`);
+        
+        // Reset all states to return to upload screen
+        setIsProcessing(false);
+        setOrganizedBookmarks(null);
+        setProcessingProgress({ step: 0, message: '', progress: 0 });
+        setAiResponses([]);
+        setError(null);
+        
+        toast({
+          title: 'Process Cancelled',
+          description: 'You can now start a new process',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      };
+      
+      window.addEventListener('resetBookmarkProcess', handleResetProcess);
+      
+      // Clean up event listener
+      return () => {
+        window.removeEventListener('resetBookmarkProcess', handleResetProcess);
+      };
     } catch (err) {
       console.error('Failed to log application start:', err);
     }
   }, []);
+</old_str>
 
   const checkConnection = async () => {
     setIsCheckingConnection(true);

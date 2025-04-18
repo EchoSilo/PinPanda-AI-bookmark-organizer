@@ -59,16 +59,20 @@ Return ONLY a valid JSON object with the following structure:
   }
 }
 
+SPECIAL FOLDER HANDLING:
+The "Bookmarks bar" folder is a special system folder in browsers. Any bookmarks originally in this folder structure should be organized within a "Bookmarks bar" main category. Create thematic subcategories within the "Bookmarks bar" main category to organize these bookmarks.
+
 ORGANIZATION GUIDELINES:
-1. Create 5-8 meaningful MAIN CATEGORIES based on major themes (e.g., Work, Personal, Technology, Finance, Education)
-2. Create relevant SUBCATEGORIES within each main category for more specific groupings
-3. Ensure EVERY bookmark is assigned to the most specific appropriate category
-4. Use DESCRIPTIVE, CONCISE category names that clearly indicate the content
-5. Group SIMILAR content together logically
-6. ELIMINATE CLUTTER by creating a clean, intuitive hierarchy
-7. Make categories EASY TO BROWSE by limiting the number of items in each category
-8. BALANCE the number of bookmarks across categories when possible
-9. Use existing folder structure as a HINT, but prioritize logical organization
+1. ALWAYS preserve the "Bookmarks bar" structure - create a "Bookmarks bar" main category for any bookmark with that folder prefix
+2. Within "Bookmarks bar", create meaningful subcategories based on major themes (Finance, Technology, Media, etc.)
+3. For non-Bookmarks bar content, create separate main categories based on major themes
+4. Create relevant SUBCATEGORIES within each main category for more specific groupings
+5. Ensure EVERY bookmark is assigned to the most specific appropriate category
+6. Use DESCRIPTIVE, CONCISE category names that clearly indicate the content
+7. Group SIMILAR content together logically
+8. ELIMINATE CLUTTER by creating a clean, intuitive hierarchy
+9. Make categories EASY TO BROWSE by limiting the number of items in each category
+10. BALANCE the number of bookmarks across categories when possible
 
 CATEGORY NAMING GUIDELINES:
 - Use clear, descriptive nouns or short phrases (e.g., "Software Development" not "Code Stuff")
@@ -110,16 +114,20 @@ Return ONLY a valid JSON object with the following structure:
   }
 }
 
+SPECIAL FOLDER HANDLING:
+The "Bookmarks bar" folder is a special system folder in browsers. Any bookmarks originally in this folder structure should be organized within a "Bookmarks bar" main category. Create thematic subcategories within the "Bookmarks bar" main category to organize these bookmarks.
+
 ORGANIZATION GUIDELINES:
 1. Follow the user's instructions precisely
-2. Create 5-8 meaningful MAIN CATEGORIES based on major themes (e.g., Work, Personal, Technology, Finance, Education)
-3. Create relevant SUBCATEGORIES within each main category for more specific groupings
-4. Ensure EVERY bookmark is assigned to the most specific appropriate category
-5. Use DESCRIPTIVE, CONCISE category names that clearly indicate the content
-6. Group SIMILAR content together logically
-7. ELIMINATE CLUTTER by creating a clean, intuitive hierarchy
-8. Make categories EASY TO BROWSE by limiting the number of items in each category
-9. BALANCE the number of bookmarks across categories when possible
+2. ALWAYS preserve the "Bookmarks bar" structure - create a "Bookmarks bar" main category for any bookmark with that folder prefix
+3. Within "Bookmarks bar", create meaningful subcategories based on major themes
+4. For non-Bookmarks bar content, create separate main categories based on major themes
+5. Create relevant SUBCATEGORIES within each main category for more specific groupings
+6. Ensure EVERY bookmark is assigned to the most specific appropriate category
+7. Use DESCRIPTIVE, CONCISE category names that clearly indicate the content
+8. Group SIMILAR content together logically
+9. ELIMINATE CLUTTER by creating a clean, intuitive hierarchy
+10. Make categories EASY TO BROWSE by limiting the number of items in each category
 
 CATEGORY NAMING GUIDELINES:
 - Use clear, descriptive nouns or short phrases (e.g., "Software Development" not "Code Stuff")

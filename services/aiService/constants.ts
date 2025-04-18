@@ -40,30 +40,21 @@ export const MAX_TOKENS = 2000;
 
 // System prompts
 export const CATEGORIZATION_SYSTEM_PROMPT = `
-You are an expert in organizing bookmarks. Your objective is to create a logical and coherent structure for the user's chrome browser bookmarks.
+You are a highly intelligent assistant whose sole job is to convert a raw Chrome bookmarks HTML into a three-level folder tree:
 
-STRATEGIC GUIDELINES:
-1. Analyze the bookmarks in-depth to understand their themes and context.
-2. Use examples below and analogies to find common themes and logical groupings.
-3. Instead of generic names, use contextual examples for category creation. E.g., group "Python Guides" under "Programming Languages" rather than just "Books".
-4. Balance specificity and breadth - ensure categories are neither too broad nor too specific, reflecting how related bookmarks genuinely connect.
-5. Leverage multiple levels only when truly beneficial, keeping the hierarchy intuitive and user-friendly.
+1. Level 1 (Domain): Broad area of knowledge—e.g. AI, BI & Analytics, Web Dev, APIs, Hackathons, etc.
+2. Level 2 (Subdomain): Specific technology, product, or field within that domain—e.g. under AI you might have Tools, Prompt Engineering, Agents; under BI & Analytics you might have Power BI, Tableau, SQL; under APIs you might have Audio, Search, Maps.
+3. Level 3 (Category): Type of resource or activity—e.g. Tutorial, Reference, Hackathon, Blog Post, Repo.
 
-CATEGORY EXAMPLES:
-- AI-related bookmarks like RAG, GitHub, prompt engineering, etc., in relevant folders under a Parent "AI" folder in the All Bookmarks folder.
-- Cryptocurrency-related bookmarks would go into a "Cryptocurrency" folder in the All Bookmarks folder with related sub-folders.
-- EY-related bookmarks would be in an "EY" folder in the All Bookmarks folder.
-- Project Management and Product Management could be consolidated into a "Project & Product Management" in the All Bookmarks folder.
+Rules:
+- Use the bookmark’s description (if present) along with its title and URL to choose the correct Domain and Subdomain.
+- If the description or URL contains a product name (e.g. "Power BI"), that determines the Subdomain under its Domain (BI & Analytics).
+- If the description mentions an event type (e.g. "hackathon"), that goes into Level 3 Hackathon.
+- Never use vague buckets like “Misc,” “Other,” or “AI Stuff.”
+- Place each bookmark in exactly one [Domain] / [Subdomain] / [Category] path.
+- If you cannot confidently map a bookmark, put it under General / Uncategorized / MiscBookmarks.
 
-Focus on creating a structure that mirrors the user's workflow, preferences, and the nature of the bookmarks. Provide a JSON structure:
-{
-  "Category Name": {
-    "bookmarks": [indices of bookmarks],
-    "subcategories": {
-      "Subcategory Name": [indices of bookmarks]
-    }
-  }
-}
+Return a JSON object to represent this hierarchical categorization.
 `;
 
 export const REORGANIZATION_SYSTEM_PROMPT = `

@@ -5,35 +5,37 @@ export const MAX_BOOKMARKS_PER_LARGE_FOLDER_CHUNK = 20;
 
 // API key management
 export const getApiKey = (): string => {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('openai_api_key') || '';
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("openai_api_key") || "";
 };
 
 // Add a function to check if the API key is valid
 export const isValidApiKey = (key: string): boolean => {
   // Clean the key if it hasn't been cleaned already
-  const cleanKey = key.replace(/\s+/g, '');
+  const cleanKey = key.replace(/\s+/g, "");
 
   const isValid = Boolean(
-    cleanKey && 
-    typeof cleanKey === 'string' && 
-    cleanKey.trim().length > 20 && 
-    (cleanKey.startsWith('sk-') || cleanKey.startsWith('sk-proj-'))
+    cleanKey &&
+      typeof cleanKey === "string" &&
+      cleanKey.trim().length > 20 &&
+      (cleanKey.startsWith("sk-") || cleanKey.startsWith("sk-proj-")),
   );
 
-  console.log('API Key validation:', {
+  console.log("API Key validation:", {
     exists: !!cleanKey,
-    isString: typeof cleanKey === 'string',
+    isString: typeof cleanKey === "string",
     hasLength: cleanKey && cleanKey.trim().length > 20,
-    startsWithPrefix: cleanKey && (cleanKey.startsWith('sk-') || cleanKey.startsWith('sk-proj-')),
-    isValid: isValid
+    startsWithPrefix:
+      cleanKey &&
+      (cleanKey.startsWith("sk-") || cleanKey.startsWith("sk-proj-")),
+    isValid: isValid,
   });
 
   return isValid;
 };
 
 // OpenAI configuration
-export const OPENAI_MODEL = 'gpt-4o-mini';
+export const OPENAI_MODEL = "gpt-4o-mini";
 export const MAX_TOKENS = 2000;
 
 // System prompts
@@ -48,10 +50,10 @@ STRATEGIC GUIDELINES:
 5. Leverage multiple levels only when truly beneficial, keeping the hierarchy intuitive and user-friendly.
 
 CATEGORY EXAMPLES:
-- AI-related bookmarks like RAG, GitHub, prompt engineering, etc., in relevant folders under an "AI" folder.
-- Cryptocurrency-related bookmarks would go into a "Cryptocurrency" folder and related sub-folders.
-- EY-related bookmarks would be in an "EY" folder.
-- Project Management and Product Management could be consolidated into a "Project & Product Management" folder.
+- AI-related bookmarks like RAG, GitHub, prompt engineering, etc., in relevant folders under a Parent "AI" folder in the All Bookmarks folder.
+- Cryptocurrency-related bookmarks would go into a "Cryptocurrency" folder in the All Bookmarks folder with related sub-folders.
+- EY-related bookmarks would be in an "EY" folder in the All Bookmarks folder.
+- Project Management and Product Management could be consolidated into a "Project & Product Management" in the All Bookmarks folder.
 
 Focus on creating a structure that mirrors the user's workflow, preferences, and the nature of the bookmarks. Provide a JSON structure:
 {
@@ -89,7 +91,7 @@ Return ONLY a valid JSON object with the following structure:
 ORGANIZATION GUIDELINES:
 1. Follow the user's instructions precisely
 2. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
-3. Create SPECIFIC, CONTEXTUAL categories based on actual content patterns
+3. In sub-folders create SPECIFIC, CONTEXTUAL categories based on actual content patterns, but broader in the top-level folder
 4. Avoid overly broad categories like "Finance" or "Technology" - use more specific themes
 5. Group related content into cohesive, meaningful clusters (e.g., "JavaScript Frameworks" instead of just "Programming")
 
@@ -97,7 +99,6 @@ CATEGORY NAMING GUIDELINES:
 - Use clear, descriptive nouns or short phrases (e.g., "Software Development" not "Code Stuff")
 - Be specific enough to be meaningful (e.g., "JavaScript Resources" not just "Programming")
 - Be consistent in naming style across categories
-- Avoid overly technical terms unless the content is highly specialized
 - Use title case for category names (e.g., "Financial Planning" not "financial planning")
 
 CATEGORIZATION STRATEGY:
@@ -105,7 +106,6 @@ CATEGORIZATION STRATEGY:
 2. Create main categories for these themes
 3. Within each main category, identify logical subgroups
 4. Create subcategories for these subgroups
-5. Assign each bookmark to the most specific appropriate category
-6. Ensure no category is too large or too small
-7. Review and refine the structure for balance and usability
+5. Assign each bookmark to the most appropriate topic, theme, subgroup, or category
+6. Review and refine the structure for balance and usability
 `;

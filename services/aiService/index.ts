@@ -928,12 +928,12 @@ IMPORTANT INSTRUCTIONS:
 2. Create SPECIFIC, CONTEXTUAL categories based on the actual content patterns in the bookmarks
 3. Group related topics into meaningful clusters based on content relationships and domain context
 4. Create a hierarchical organization with well-defined categories and descriptive subcategories  
-5. Use precise, specialized category names that capture the exact nature of the content
+5. In sub-folders, Use precise, specialized category names that capture the exact nature of the content in top-level folder more broadly
 6. Ensure every bookmark is assigned to the most appropriate specific category
-7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
+7. Create a clean, intuitive hierarchy - only go 4-5 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
 9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
-10. AVOID overly broad categories like "Finance", "Technology", or "Media" - use more precise themes
+10. AVOID overly broad categories like "Finance", "Technology", or "Media" - use more specific and topical themes
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;
@@ -1033,7 +1033,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
       );
       retryCount++;
 
-            if (retryCount <= maxRetries) {
+      if (retryCount <= maxRetries) {
         Logger.info(
           "AIService",
           `Retrying chunk ${chunkIndex + 1} (attempt ${retryCount} of ${maxRetries})`,
@@ -1188,41 +1188,55 @@ const makeOpenAIRequest = async (
 export const searchBookmarks = async (
   bookmarks: Bookmark[],
   query: string,
-  apiKey?: string
+  apiKey?: string,
 ): Promise<OrganizedBookmarks> => {
   try {
-    Logger.info("AIService", `Starting AI-powered search for query: "${query}"`);
+    Logger.info(
+      "AIService",
+      `Starting AI-powered search for query: "${query}"`,
+    );
     const startTime = performance.now();
 
     // Check if this is a semantic search query (natural language) vs. keyword search
-    const isSemanticSearch = query.length > 3 && 
-      !query.includes('http') && 
-      query.split(' ').length > 1;
+    const isSemanticSearch =
+      query.length > 3 &&
+      !query.includes("http") &&
+      query.split(" ").length > 1;
 
     // First perform a keyword match as a baseline
-    const keywordMatch = (bookmark: Bookmark, searchTerms: string[]): boolean => {
+    const keywordMatch = (
+      bookmark: Bookmark,
+      searchTerms: string[],
+    ): boolean => {
       // Safely check values that might be undefined/null
-      const titleLower = (bookmark.title || '').toLowerCase();
-      const urlLower = (bookmark.url || '').toLowerCase();
-      const folderLower = (bookmark.folder || '').toLowerCase();
+      const titleLower = (bookmark.title || "").toLowerCase();
+      const urlLower = (bookmark.url || "").toLowerCase();
+      const folderLower = (bookmark.folder || "").toLowerCase();
 
       // Check if any search term is in the title, URL or folder
-      return searchTerms.some(term => 
-        titleLower.includes(term) || 
-        urlLower.includes(term) || 
-        folderLower.includes(term)
+      return searchTerms.some(
+        (term) =>
+          titleLower.includes(term) ||
+          urlLower.includes(term) ||
+          folderLower.includes(term),
       );
     };
 
     // Break query into terms for more flexible matching
-    const searchTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 1);
+    const searchTerms = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((term) => term.length > 1);
 
-    // Find direct keyword matches 
-    const directMatches = bookmarks.filter(bookmark => 
-      keywordMatch(bookmark, searchTerms)
+    // Find direct keyword matches
+    const directMatches = bookmarks.filter((bookmark) =>
+      keywordMatch(bookmark, searchTerms),
     );
 
-    Logger.info("AIService", `Found ${directMatches.length} bookmarks matching keywords in ${performance.now() - startTime}ms`);
+    Logger.info(
+      "AIService",
+      `Found ${directMatches.length} bookmarks matching keywords in ${performance.now() - startTime}ms`,
+    );
 
     // If not doing semantic search or we have small result set, just return basic results
     if (!isSemanticSearch || directMatches.length <= 5) {
@@ -1230,17 +1244,17 @@ export const searchBookmarks = async (
         categories: [
           {
             name: `Search Results for "${query}"`,
-            bookmarks: directMatches
-          }
+            bookmarks: directMatches,
+          },
         ],
         invalidBookmarks: [],
         duplicateBookmarks: [],
-        duplicateStats: { 
+        duplicateStats: {
           uniqueUrls: directMatches.length,
           urlsWithDuplicates: 0,
           totalDuplicateReferences: 0,
-          mostDuplicatedUrls: []
-        }
+          mostDuplicatedUrls: [],
+        },
       };
     }
 
@@ -1249,7 +1263,10 @@ export const searchBookmarks = async (
     const bookmarksToProcess = directMatches.slice(0, MAX_BOOKMARKS_TO_PROCESS);
 
     if (bookmarksToProcess.length < directMatches.length) {
-      Logger.info("AIService", `Limiting semantic search to ${MAX_BOOKMARKS_TO_PROCESS} bookmarks to avoid performance issues`);
+      Logger.info(
+        "AIService",
+        `Limiting semantic search to ${MAX_BOOKMARKS_TO_PROCESS} bookmarks to avoid performance issues`,
+      );
     }
 
     // For semantic search, use AI to understand query and organize results
@@ -1270,12 +1287,16 @@ Please analyze these bookmarks and organize them into relevant categories based 
 Focus on what the user is really looking for rather than just keyword matches.
 
 Here are the bookmarks:
-${JSON.stringify(bookmarksToProcess.map((b, i) => ({
-  id: i,
-  title: b.title || 'Untitled',
-  url: b.url,
-  folder: b.folder || 'Uncategorized'
-})), null, 2)}
+${JSON.stringify(
+  bookmarksToProcess.map((b, i) => ({
+    id: i,
+    title: b.title || "Untitled",
+    url: b.url,
+    folder: b.folder || "Uncategorized",
+  })),
+  null,
+  2,
+)}
 
 Return a JSON object with the following structure:
 {
@@ -1296,20 +1317,20 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
 
     try {
       // Add timeout for AI response to prevent hanging
-      const timeoutPromise = new Promise<{content: string}>((_, reject) => {
+      const timeoutPromise = new Promise<{ content: string }>((_, reject) => {
         setTimeout(() => reject(new Error("Search timeout")), 10000); // 10-second timeout
       });
 
       const aiResponse = await Promise.race([
         callOpenAI(searchSystemPrompt, searchPrompt),
-        timeoutPromise
+        timeoutPromise,
       ]);
 
       const responseData = extractJsonFromResponse(aiResponse.content);
 
       if (responseData && responseData.categories) {
         // Transform AI response into our OrganizedBookmarks format
-        const categories: {name: string; bookmarks: Bookmark[]}[] = [];
+        const categories: { name: string; bookmarks: Bookmark[] }[] = [];
 
         // Get relevance scores if available
         const relevanceScores = responseData.relevance_scores || {};
@@ -1322,7 +1343,7 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
             bookmarks: mostRelevantIds
               .filter((id: number) => id >= 0 && id < bookmarksToProcess.length)
               .map((id: number) => bookmarksToProcess[id])
-              .filter(Boolean)
+              .filter(Boolean),
           });
 
           // Remove this category so we don't process it again
@@ -1330,36 +1351,45 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
         }
 
         // Add remaining categories
-        Object.entries(responseData.categories).forEach(([categoryName, bookmarkIds]) => {
-          if (Array.isArray(bookmarkIds) && bookmarkIds.length > 0) {
-            categories.push({
-              name: categoryName,
-              bookmarks: (bookmarkIds as number[])
-                .filter(id => id >= 0 && id < bookmarksToProcess.length)
-                .map(id => bookmarksToProcess[id])
-                .filter(Boolean)
-                // Sort by relevance score if available
-                .sort((a, b) => {
-                  const idA = bookmarksToProcess.findIndex(bm => bm.id === a.id);
-                  const idB = bookmarksToProcess.findIndex(bm => bm.id === b.id);
-                  const scoreA = relevanceScores[idA] || 0;
-                  const scoreB = relevanceScores[idB] || 0;
-                  return scoreB - scoreA;
-                })
-            });
-          }
-        });
+        Object.entries(responseData.categories).forEach(
+          ([categoryName, bookmarkIds]) => {
+            if (Array.isArray(bookmarkIds) && bookmarkIds.length > 0) {
+              categories.push({
+                name: categoryName,
+                bookmarks: (bookmarkIds as number[])
+                  .filter((id) => id >= 0 && id < bookmarksToProcess.length)
+                  .map((id) => bookmarksToProcess[id])
+                  .filter(Boolean)
+                  // Sort by relevance score if available
+                  .sort((a, b) => {
+                    const idA = bookmarksToProcess.findIndex(
+                      (bm) => bm.id === a.id,
+                    );
+                    const idB = bookmarksToProcess.findIndex(
+                      (bm) => bm.id === b.id,
+                    );
+                    const scoreA = relevanceScores[idA] || 0;
+                    const scoreB = relevanceScores[idB] || 0;
+                    return scoreB - scoreA;
+                  }),
+              });
+            }
+          },
+        );
 
         // If no categories were created (something went wrong), use direct matches
         if (categories.length === 0) {
           categories.push({
             name: `Search Results for "${query}"`,
-            bookmarks: directMatches
+            bookmarks: directMatches,
           });
         }
 
         const endTime = performance.now();
-        Logger.info("AIService", `Completed semantic search in ${endTime - startTime}ms with ${categories.length} categories`);
+        Logger.info(
+          "AIService",
+          `Completed semantic search in ${endTime - startTime}ms with ${categories.length} categories`,
+        );
 
         return {
           categories,
@@ -1369,12 +1399,16 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
             uniqueUrls: directMatches.length,
             urlsWithDuplicates: 0,
             totalDuplicateReferences: 0,
-            mostDuplicatedUrls: []
-          }
+            mostDuplicatedUrls: [],
+          },
         };
       }
     } catch (error) {
-      Logger.error("AIService", "Error during semantic search processing", error);
+      Logger.error(
+        "AIService",
+        "Error during semantic search processing",
+        error,
+      );
     }
 
     // Fallback if AI processing fails
@@ -1382,8 +1416,8 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
       categories: [
         {
           name: `Search Results for "${query}"`,
-          bookmarks: directMatches
-        }
+          bookmarks: directMatches,
+        },
       ],
       invalidBookmarks: [],
       duplicateBookmarks: [],
@@ -1391,24 +1425,25 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
         uniqueUrls: directMatches.length,
         urlsWithDuplicates: 0,
         totalDuplicateReferences: 0,
-        mostDuplicatedUrls: []
-      }
+        mostDuplicatedUrls: [],
+      },
     };
   } catch (error) {
     Logger.error("AIService", "Error during search", error);
 
     // Fallback to basic search if anything fails
-    const basicResults = bookmarks.filter(bookmark =>
-      bookmark.title?.toLowerCase().includes(query.toLowerCase()) ||
-      bookmark.url?.toLowerCase().includes(query.toLowerCase())
+    const basicResults = bookmarks.filter(
+      (bookmark) =>
+        bookmark.title?.toLowerCase().includes(query.toLowerCase()) ||
+        bookmark.url?.toLowerCase().includes(query.toLowerCase()),
     );
 
     return {
       categories: [
         {
           name: `Search Results for "${query}"`,
-          bookmarks: basicResults
-        }
+          bookmarks: basicResults,
+        },
       ],
       invalidBookmarks: [],
       duplicateBookmarks: [],
@@ -1416,8 +1451,8 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
         uniqueUrls: basicResults.length,
         urlsWithDuplicates: 0,
         totalDuplicateReferences: 0,
-        mostDuplicatedUrls: []
-      }
+        mostDuplicatedUrls: [],
+      },
     };
   }
 };

@@ -143,6 +143,14 @@ export const cancelOngoingProcess = (): void => {
     processingState.cancelToken.cancelled = true;
     processingState.message = 'Process cancelled by user';
   }
+  
+  if (cancelController) {
+    Logger.info("AIService", "Canceling ongoing process");
+    cancelController.abort();
+    cancelController = null;
+  } else {
+    Logger.info("AIService", "No ongoing process to cancel");
+  }
 };
 
 // Main function to organize bookmarks
@@ -1079,16 +1087,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
   return null;
 };
 
-// Function to cancel ongoing processes
-export const cancelOngoingProcess = (): void => {
-  if (cancelController) {
-    Logger.info("AIService", "Canceling ongoing process");
-    cancelController.abort();
-    cancelController = null;
-  } else {
-    Logger.info("AIService", "No ongoing process to cancel");
-  }
-};
+// Note: cancelOngoingProcess function is already defined above
 
 // Call the OpenAI API
 export const callOpenAI = async (

@@ -827,7 +827,7 @@ interface BookmarkOrganizerProps {
 export default function BookmarkOrganizer({ organizedBookmarks, onReset }: BookmarkOrganizerProps) {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [isExporting, setIsExporting] = useState(false);
   const [selectedBookmark, setSelectedBookmark] = useState<Bookmark | null>(null);
   const [draggingBookmark, setDraggingBookmark] = useState<Bookmark | null>(null);

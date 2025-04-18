@@ -464,7 +464,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
     Logger.debug("AIService", `Prompt token estimate: ${promptTokens}`, {
       promptTokens,
     });
-    Logger.debug("AIService", `System prompt token estimate: ${systemTokens}`, {
+    Logger.debug("AIService", `System prompt estimate: ${systemTokens}`, {
       systemTokens,
     });
     Logger.debug("AIService", `Total token estimate: ${totalTokens}`, {

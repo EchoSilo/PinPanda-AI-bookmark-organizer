@@ -450,11 +450,6 @@ IMPORTANT INSTRUCTIONS:
 7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
 
-SPECIAL HANDLING FOR "Bookmarks bar" FOLDER:
-* PRESERVE "Bookmarks bar" as a main category for all bookmarks that originated in this folder
-* Within the "Bookmarks bar" category, create logical subcategories by theme
-* For bookmarks that show "Bookmarks bar/" as part of their folder path, maintain them under this special category
-
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;
 
@@ -935,11 +930,6 @@ IMPORTANT INSTRUCTIONS:
 6. Ensure every bookmark is assigned to the most specific appropriate category
 7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
-
-SPECIAL HANDLING FOR "Bookmarks bar" FOLDER:
-* PRESERVE "Bookmarks bar" as a main category for all bookmarks that originated in this folder
-* Within the "Bookmarks bar" category, create logical subcategories by theme
-* For bookmarks that show "Bookmarks bar/" as part of their folder path, maintain them under this special category
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;

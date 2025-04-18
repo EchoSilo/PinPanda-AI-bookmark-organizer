@@ -442,13 +442,13 @@ ${JSON.stringify(dataToProcess, null, 2)}
 
 IMPORTANT INSTRUCTIONS:
 1. Analyze these bookmarks deeply to understand their content, purpose, and relationships
-2. Create a hierarchical organization with main categories and subcategories
-3. Group similar bookmarks together based on themes, topics, and content
-4. Use descriptive, concise category names that clearly indicate the content
-5. Ensure every bookmark is assigned to the most specific appropriate category
-6. Create a clean, intuitive hierarchy that eliminates clutter
-7. Make categories easy to browse by limiting the number of items in each category
-8. Most bookmarks will be from a single Bookmarks Toolbar folder, so consider the folder  when categorizing to keep the Bookmarks Toolbar intact
+2. Create ONLY 4-6 BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
+3. Group related topics together (e.g., all cryptocurrency under Finance, all development tools under Technology)
+4. Create a deep hierarchical organization with main categories and meaningful subcategories
+5. Use descriptive, concise category names that clearly indicate the content
+6. Ensure every bookmark is assigned to the most specific appropriate category
+7. Create a clean, intuitive hierarchy with 2-3 levels rather than many top-level categories
+8. AVOID creating multiple similar categories at the same level - consolidate related topics
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;
@@ -923,12 +923,13 @@ ${JSON.stringify(chunkData, null, 2)}
 
 IMPORTANT INSTRUCTIONS:
 1. Analyze these bookmarks deeply to understand their content, purpose, and relationships
-2. Create a hierarchical organization with main categories and subcategories
-3. Group similar bookmarks together based on themes, topics, and content
-4. Use descriptive, concise category names that clearly indicate the content
-5. Ensure every bookmark is assigned to the most specific appropriate category
-6. Create a clean, intuitive hierarchy that eliminates clutter
-7. Make categories easy to browse by limiting the number of items in each category
+2. Create ONLY 4-6 BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
+3. Group related topics together (e.g., all cryptocurrency under Finance, all development tools under Technology)
+4. Create a deep hierarchical organization with main categories and meaningful subcategories
+5. Use descriptive, concise category names that clearly indicate the content
+6. Ensure every bookmark is assigned to the most specific appropriate category
+7. Create a clean, intuitive hierarchy with 2-3 levels rather than many top-level categories
+8. AVOID creating multiple similar categories at the same level - consolidate related topics
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;

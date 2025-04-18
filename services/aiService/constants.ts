@@ -13,14 +13,14 @@ export const getApiKey = (): string => {
 export const isValidApiKey = (key: string): boolean => {
   // Clean the key if it hasn't been cleaned already
   const cleanKey = key.replace(/\s+/g, '');
-  
+
   const isValid = Boolean(
     cleanKey && 
     typeof cleanKey === 'string' && 
     cleanKey.trim().length > 20 && 
     (cleanKey.startsWith('sk-') || cleanKey.startsWith('sk-proj-'))
   );
-  
+
   console.log('API Key validation:', {
     exists: !!cleanKey,
     isString: typeof cleanKey === 'string',
@@ -28,7 +28,7 @@ export const isValidApiKey = (key: string): boolean => {
     startsWithPrefix: cleanKey && (cleanKey.startsWith('sk-') || cleanKey.startsWith('sk-proj-')),
     isValid: isValid
   });
-  
+
   return isValid;
 };
 
@@ -78,13 +78,14 @@ CATEGORY NAMING GUIDELINES:
 - Use title case for category names (e.g., "Financial Planning" not "financial planning")
 
 CATEGORIZATION STRATEGY:
-1. First, identify the major themes across all bookmarks
-2. Create main categories for these themes
-3. Within each main category, identify logical subgroups
-4. Create subcategories for these subgroups
-5. Assign each bookmark to the most specific appropriate category
-6. Ensure no category is too large or too small
-7. Review and refine the structure for balance and usability
+1. First, identify BROAD, HIGH-LEVEL themes across all bookmarks (limit to 4-6 themes maximum)
+2. Create main categories ONLY for these major themes (Finance, Technology, Media, etc.)
+3. Group RELATED topics together under the same main category (e.g., all cryptocurrency under "Finance")
+4. Within each main category, create logical subcategories for more specific groupings
+5. Further subdivide large subcategories if needed, creating a hierarchical tree
+6. Assign each bookmark to the most specific appropriate category
+7. AVOID creating multiple similar categories at the same level (consolidate them)
+8. Review and refine the structure for balance and usability
 `;
 
 export const REORGANIZATION_SYSTEM_PROMPT = `

@@ -33,7 +33,7 @@ export const isValidApiKey = (key: string): boolean => {
 };
 
 // OpenAI configuration
-export const OPENAI_MODEL = 'gpt-3.5-turbo';
+export const OPENAI_MODEL = 'gpt-4o-mini';
 export const MAX_TOKENS = 2000;
 
 // System prompts

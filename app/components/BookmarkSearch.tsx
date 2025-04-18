@@ -86,7 +86,24 @@ export default function BookmarkSearch({ bookmarks, onSearchResults }: BookmarkS
     };
   }, [bookmarks]);
 
-  const handleSearch = async () => {
+  // Add debounce function to avoid unnecessary API calls
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+  
+  return debouncedValue;
+};
+
+const handleSearch = async () => {
     if (!query.trim()) {
       toast({
         title: 'Search query required',
@@ -177,6 +194,16 @@ export default function BookmarkSearch({ bookmarks, onSearchResults }: BookmarkS
       isClosable: true,
     });
   };
+
+  // Add auto-search with debouncing
+  const debouncedSearchTerm = useDebounce(query, 500);
+  
+  // Effect to auto-search when debounced search term changes
+  useEffect(() => {
+    if (debouncedSearchTerm && debouncedSearchTerm.length >= 3) {
+      handleSearch();
+    }
+  }, [debouncedSearchTerm]);
 
   return (
     <VStack width="100%" maxW="600px" mx="auto" mb={4} spacing={2}>

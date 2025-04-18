@@ -1196,8 +1196,9 @@ export const searchBookmarks = async (
     
     // First perform a keyword match as a baseline
     const keywordMatch = (bookmark: Bookmark, searchTerms: string[]): boolean => {
-      const titleLower = bookmark.title.toLowerCase();
-      const urlLower = bookmark.url.toLowerCase();
+      // Safely check values that might be undefined/null
+      const titleLower = (bookmark.title || '').toLowerCase();
+      const urlLower = (bookmark.url || '').toLowerCase();
       const folderLower = (bookmark.folder || '').toLowerCase();
       
       // Check if any search term is in the title, URL or folder
@@ -1238,6 +1239,14 @@ export const searchBookmarks = async (
       };
     }
 
+    // Limit the number of bookmarks to process to avoid timeout issues
+    const MAX_BOOKMARKS_TO_PROCESS = 50;
+    const bookmarksToProcess = directMatches.slice(0, MAX_BOOKMARKS_TO_PROCESS);
+    
+    if (bookmarksToProcess.length < directMatches.length) {
+      Logger.info("AIService", `Limiting semantic search to ${MAX_BOOKMARKS_TO_PROCESS} bookmarks to avoid performance issues`);
+    }
+
     // For semantic search, use AI to understand query and organize results
     Logger.info("AIService", `Performing semantic search for: "${query}"`);
     
@@ -1251,14 +1260,14 @@ Consider both explicit keywords and the implicit intent behind the search.
     const searchPrompt = `
 Search query: "${query}"
 
-I have ${directMatches.length} bookmarks that roughly match this query based on keywords.
+I have ${bookmarksToProcess.length} bookmarks that roughly match this query based on keywords.
 Please analyze these bookmarks and organize them into relevant categories based on the user's search intent.
 Focus on what the user is really looking for rather than just keyword matches.
 
 Here are the bookmarks:
-${JSON.stringify(directMatches.map((b, i) => ({
+${JSON.stringify(bookmarksToProcess.map((b, i) => ({
   id: i,
-  title: b.title,
+  title: b.title || 'Untitled',
   url: b.url,
   folder: b.folder || 'Uncategorized'
 })), null, 2)}
@@ -1281,7 +1290,16 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
 `;
 
     try {
-      const aiResponse = await callOpenAI(searchSystemPrompt, searchPrompt);
+      // Add timeout for AI response to prevent hanging
+      const timeoutPromise = new Promise<{content: string}>((_, reject) => {
+        setTimeout(() => reject(new Error("Search timeout")), 10000); // 10-second timeout
+      });
+      
+      const aiResponse = await Promise.race([
+        callOpenAI(searchSystemPrompt, searchPrompt),
+        timeoutPromise
+      ]);
+      
       const responseData = extractJsonFromResponse(aiResponse.content);
       
       if (responseData && responseData.categories) {
@@ -1296,7 +1314,10 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
           const mostRelevantIds = responseData.categories["Most Relevant"];
           categories.push({
             name: `Top Results for "${query}"`,
-            bookmarks: mostRelevantIds.map((id: number) => directMatches[id]).filter(Boolean)
+            bookmarks: mostRelevantIds
+              .filter((id: number) => id >= 0 && id < bookmarksToProcess.length)
+              .map((id: number) => bookmarksToProcess[id])
+              .filter(Boolean)
           });
           
           // Remove this category so we don't process it again
@@ -1309,12 +1330,13 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
             categories.push({
               name: categoryName,
               bookmarks: (bookmarkIds as number[])
-                .map(id => directMatches[id])
+                .filter(id => id >= 0 && id < bookmarksToProcess.length)
+                .map(id => bookmarksToProcess[id])
                 .filter(Boolean)
                 // Sort by relevance score if available
                 .sort((a, b) => {
-                  const idA = directMatches.findIndex(bm => bm.id === a.id);
-                  const idB = directMatches.findIndex(bm => bm.id === b.id);
+                  const idA = bookmarksToProcess.findIndex(bm => bm.id === a.id);
+                  const idB = bookmarksToProcess.findIndex(bm => bm.id === b.id);
                   const scoreA = relevanceScores[idA] || 0;
                   const scoreB = relevanceScores[idB] || 0;
                   return scoreB - scoreA;
@@ -1372,8 +1394,8 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
 
     // Fallback to basic search if anything fails
     const basicResults = bookmarks.filter(bookmark =>
-      bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
-      bookmark.url.toLowerCase().includes(query.toLowerCase())
+      bookmark.title?.toLowerCase().includes(query.toLowerCase()) ||
+      bookmark.url?.toLowerCase().includes(query.toLowerCase())
     );
 
     return {

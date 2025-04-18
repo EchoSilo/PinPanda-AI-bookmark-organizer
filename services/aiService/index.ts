@@ -442,12 +442,12 @@ ${JSON.stringify(dataToProcess, null, 2)}
 
 IMPORTANT INSTRUCTIONS:
 1. Analyze these bookmarks deeply to understand their content, purpose, and relationships
-2. Create ONLY 4-6 BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
+2. Create BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
 3. Group related topics together (e.g., all cryptocurrency under Finance, all development tools under Technology)
-4. Create a deep hierarchical organization with main categories and meaningful subcategories
+4. Create a hierarchical organization with main categories and meaningful subcategories
 5. Use descriptive, concise category names that clearly indicate the content
 6. Ensure every bookmark is assigned to the most specific appropriate category
-7. Create a clean, intuitive hierarchy with 2-3 levels rather than many top-level categories
+7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
@@ -923,12 +923,12 @@ ${JSON.stringify(chunkData, null, 2)}
 
 IMPORTANT INSTRUCTIONS:
 1. Analyze these bookmarks deeply to understand their content, purpose, and relationships
-2. Create ONLY 4-6 BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
+2. Create BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
 3. Group related topics together (e.g., all cryptocurrency under Finance, all development tools under Technology)
-4. Create a deep hierarchical organization with main categories and meaningful subcategories
+4. Create a hierarchical organization with main categories and meaningful subcategories
 5. Use descriptive, concise category names that clearly indicate the content
 6. Ensure every bookmark is assigned to the most specific appropriate category
-7. Create a clean, intuitive hierarchy with 2-3 levels rather than many top-level categories
+7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
@@ -1194,14 +1194,14 @@ export const searchBookmarks = async (
     const isSemanticSearch = query.length > 3 && 
       !query.includes('http') && 
       query.split(' ').length > 1;
-    
+
     // First perform a keyword match as a baseline
     const keywordMatch = (bookmark: Bookmark, searchTerms: string[]): boolean => {
       // Safely check values that might be undefined/null
       const titleLower = (bookmark.title || '').toLowerCase();
       const urlLower = (bookmark.url || '').toLowerCase();
       const folderLower = (bookmark.folder || '').toLowerCase();
-      
+
       // Check if any search term is in the title, URL or folder
       return searchTerms.some(term => 
         titleLower.includes(term) || 
@@ -1209,10 +1209,10 @@ export const searchBookmarks = async (
         folderLower.includes(term)
       );
     };
-    
+
     // Break query into terms for more flexible matching
     const searchTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 1);
-    
+
     // Find direct keyword matches 
     const directMatches = bookmarks.filter(bookmark => 
       keywordMatch(bookmark, searchTerms)
@@ -1243,14 +1243,14 @@ export const searchBookmarks = async (
     // Limit the number of bookmarks to process to avoid timeout issues
     const MAX_BOOKMARKS_TO_PROCESS = 50;
     const bookmarksToProcess = directMatches.slice(0, MAX_BOOKMARKS_TO_PROCESS);
-    
+
     if (bookmarksToProcess.length < directMatches.length) {
       Logger.info("AIService", `Limiting semantic search to ${MAX_BOOKMARKS_TO_PROCESS} bookmarks to avoid performance issues`);
     }
 
     // For semantic search, use AI to understand query and organize results
     Logger.info("AIService", `Performing semantic search for: "${query}"`);
-    
+
     // Prepare a prompt for the AI to better understand the user's intent
     const searchSystemPrompt = `
 You are a search assistant that helps users find relevant bookmarks based on their query.
@@ -1295,21 +1295,21 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
       const timeoutPromise = new Promise<{content: string}>((_, reject) => {
         setTimeout(() => reject(new Error("Search timeout")), 10000); // 10-second timeout
       });
-      
+
       const aiResponse = await Promise.race([
         callOpenAI(searchSystemPrompt, searchPrompt),
         timeoutPromise
       ]);
-      
+
       const responseData = extractJsonFromResponse(aiResponse.content);
-      
+
       if (responseData && responseData.categories) {
         // Transform AI response into our OrganizedBookmarks format
         const categories: {name: string; bookmarks: Bookmark[]}[] = [];
-        
+
         // Get relevance scores if available
         const relevanceScores = responseData.relevance_scores || {};
-        
+
         // Add most relevant category first if it exists
         if (responseData.categories["Most Relevant"]) {
           const mostRelevantIds = responseData.categories["Most Relevant"];
@@ -1320,11 +1320,11 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
               .map((id: number) => bookmarksToProcess[id])
               .filter(Boolean)
           });
-          
+
           // Remove this category so we don't process it again
           delete responseData.categories["Most Relevant"];
         }
-        
+
         // Add remaining categories
         Object.entries(responseData.categories).forEach(([categoryName, bookmarkIds]) => {
           if (Array.isArray(bookmarkIds) && bookmarkIds.length > 0) {
@@ -1345,7 +1345,7 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
             });
           }
         });
-        
+
         // If no categories were created (something went wrong), use direct matches
         if (categories.length === 0) {
           categories.push({
@@ -1353,10 +1353,10 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
             bookmarks: directMatches
           });
         }
-        
+
         const endTime = performance.now();
         Logger.info("AIService", `Completed semantic search in ${endTime - startTime}ms with ${categories.length} categories`);
-        
+
         return {
           categories,
           invalidBookmarks: [],
@@ -1372,7 +1372,7 @@ IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant"
     } catch (error) {
       Logger.error("AIService", "Error during semantic search processing", error);
     }
-    
+
     // Fallback if AI processing fails
     return {
       categories: [

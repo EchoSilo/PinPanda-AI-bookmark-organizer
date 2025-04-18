@@ -78,11 +78,11 @@ CATEGORY NAMING GUIDELINES:
 - Use title case for category names (e.g., "Financial Planning" not "financial planning")
 
 CATEGORIZATION STRATEGY:
-1. First, identify BROAD, HIGH-LEVEL themes across all bookmarks (limit to 4-6 themes maximum)
-2. Create main categories ONLY for these major themes (Finance, Technology, Media, etc.)
+1. Identify BROAD, HIGH-LEVEL themes across all bookmarks based on content analysis
+2. Create main categories for these major themes (Finance, Technology, Media, etc.)
 3. Group RELATED topics together under the same main category (e.g., all cryptocurrency under "Finance")
 4. Within each main category, create logical subcategories for more specific groupings
-5. Further subdivide large subcategories if needed, creating a hierarchical tree
+5. Only create a third level of hierarchy when clearly needed for better organization
 6. Assign each bookmark to the most specific appropriate category
 7. AVOID creating multiple similar categories at the same level (consolidate them)
 8. Review and refine the structure for balance and usability

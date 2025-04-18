@@ -86,6 +86,14 @@ CATEGORIZATION STRATEGY:
 6. Assign each bookmark to the most specific appropriate category
 7. AVOID creating multiple similar categories at the same level (consolidate them)
 8. Review and refine the structure for balance and usability
+
+SPECIAL FOLDER HANDLING:
+The "Bookmarks bar" folder is a special system folder in browsers. Any bookmarks originally in this folder structure should be organized within a "Bookmarks bar" main category. Create thematic subcategories within the "Bookmarks bar" main category to organize these bookmarks.
+
+ORGANIZATION GUIDELINES:
+1. ALWAYS preserve the "Bookmarks bar" structure - create a "Bookmarks bar" main category for any bookmark with that folder prefix
+2. NEVER use generic names like "Main Category 1" or "Category X" - always use descriptive thematic names
+3. Within "Bookmarks bar", create meaningful subcategories based on specific themes (Finance, Technology, Media, etc.)
 `;
 
 export const REORGANIZATION_SYSTEM_PROMPT = `
@@ -112,14 +120,9 @@ Return ONLY a valid JSON object with the following structure:
 
 ORGANIZATION GUIDELINES:
 1. Follow the user's instructions precisely
-2. Create 5-8 meaningful MAIN CATEGORIES based on major themes (e.g., Work, Personal, Technology, Finance, Education)
-3. Create relevant SUBCATEGORIES within each main category for more specific groupings
-4. Ensure EVERY bookmark is assigned to the most specific appropriate category
-5. Use DESCRIPTIVE, CONCISE category names that clearly indicate the content
-6. Group SIMILAR content together logically
-7. ELIMINATE CLUTTER by creating a clean, intuitive hierarchy
-8. Make categories EASY TO BROWSE by limiting the number of items in each category
-9. BALANCE the number of bookmarks across categories when possible
+2. ALWAYS preserve the "Bookmarks bar" structure - create a "Bookmarks bar" main category for any bookmark with that folder prefix
+3. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
+4. Within "Bookmarks bar", create meaningful subcategories based on specific themes (e.g., "Finance Tools", "Development Resources")
 
 CATEGORY NAMING GUIDELINES:
 - Use clear, descriptive nouns or short phrases (e.g., "Software Development" not "Code Stuff")

@@ -449,6 +449,7 @@ IMPORTANT INSTRUCTIONS:
 6. Ensure every bookmark is assigned to the most specific appropriate category
 7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
+9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names like "Finance", "Development", "Entertainment", etc.
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;
@@ -930,6 +931,7 @@ IMPORTANT INSTRUCTIONS:
 6. Ensure every bookmark is assigned to the most specific appropriate category
 7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
+9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names like "Finance", "Development", "Entertainment", etc.
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;

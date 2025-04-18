@@ -266,6 +266,13 @@ interface FolderNode {
   bookmarkCount: number;
 }
 
+// Helper function to safely get nested folders
+const getNormalizedFolderPath = (folder: string): string[] => {
+  if (!folder) return [];
+  // Split by / and remove empty parts
+  return folder.split('/').map(part => part.trim()).filter(Boolean);
+};
+
 // FolderTreeItem component for rendering a single folder in the folder tree
 const FolderTreeItem = ({ 
   node, 
@@ -846,15 +853,14 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
       bookmarkCount: 0
     };
     
-    bookmarkData.categories.forEach(category => {
-      // Build path parts, empty string becomes root
-      const pathParts = category.name ? category.name.split('/') : [];
+    // Helper function to ensure we get the proper node for a path
+    const getOrCreateNodePath = (pathParts: string[]): FolderNode => {
       let currentNode = root;
       let currentPath = '';
       
-      // Build folder hierarchy
-      for (let i = 0; i < pathParts.length; i++) {
-        const part = pathParts[i];
+      for (const part of pathParts) {
+        if (!part.trim()) continue; // Skip empty parts
+        
         currentPath = currentPath ? `${currentPath}/${part}` : part;
         
         if (!currentNode.children[part]) {
@@ -870,34 +876,38 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
         currentNode = currentNode.children[part];
       }
       
-      // Add bookmarks to the leaf node
-      currentNode.bookmarks = [...currentNode.bookmarks, ...category.bookmarks];
+      return currentNode;
+    };
+    
+    bookmarkData.categories.forEach(category => {
+      // Build path parts, empty string becomes root
+      const pathParts = getNormalizedFolderPath(category.name);
+      
+      // Get or create the target node
+      const targetNode = pathParts.length > 0 
+        ? getOrCreateNodePath(pathParts) 
+        : root;
+      
+      // Add bookmarks to the target node
+      targetNode.bookmarks = [...targetNode.bookmarks, ...category.bookmarks];
       
       // Update bookmark counts for this node and all parents
-      let countNode = currentNode;
-      let countPath = currentPath;
       const bookmarkCount = category.bookmarks.length;
       
-      while (countNode) {
-        countNode.bookmarkCount += bookmarkCount;
-        
-        // Move up to parent
-        if (countPath) {
-          const parentPath = countPath.includes('/') 
-            ? countPath.substring(0, countPath.lastIndexOf('/')) 
-            : '';
-          
-          countPath = parentPath;
-          countNode = parentPath 
-            ? pathPartsToNode(parentPath.split('/'), root) 
-            : root;
-        } else {
-          break;
+      // Update counts up the tree
+      if (pathParts.length > 0) {
+        let tempParts = [...pathParts];
+        while (tempParts.length > 0) {
+          const node = getOrCreateNodePath(tempParts);
+          node.bookmarkCount += bookmarkCount;
+          tempParts.pop(); // Remove last part to go up one level
         }
       }
       
-      // Add to root count
-      root.bookmarkCount += bookmarkCount;
+      // Add to root count if not already counted
+      if (pathParts.length > 0) {
+        root.bookmarkCount += bookmarkCount;
+      }
     });
     
     return root;
@@ -908,7 +918,10 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
     let current = root;
     
     for (const part of pathParts) {
+      if (!part.trim()) continue; // Skip empty parts
+      
       if (!current.children[part]) {
+        console.warn(`Path part "${part}" not found in folder structure`);
         return null;
       }
       current = current.children[part];
@@ -942,8 +955,17 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
       return folderHierarchy;
     }
     
-    const pathParts = currentPath.split('/');
-    return pathPartsToNode(pathParts, folderHierarchy) || folderHierarchy;
+    const pathParts = getNormalizedFolderPath(currentPath);
+    const node = pathPartsToNode(pathParts, folderHierarchy);
+    
+    if (!node) {
+      console.warn(`Could not find node for path: ${currentPath}`);
+      // If path not found, reset to root
+      setTimeout(() => setCurrentPath(''), 0);
+      return folderHierarchy;
+    }
+    
+    return node;
   }, [currentPath, folderHierarchy]);
   
   // Get sub-folders of current folder
@@ -994,57 +1016,74 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
     if (bookmark.folder === targetFolder) return;
     
     setBookmarkData(prevData => {
-      // Deep clone the current data
-      const newData = JSON.parse(JSON.stringify(prevData)) as OrganizedBookmarks;
-      
-      // Find the source category
-      const sourceCategory = newData.categories.find(cat => cat.name === bookmark.folder);
-      
-      // Find or create the target category
-      let targetCategory = newData.categories.find(cat => cat.name === targetFolder);
-      
-      if (!targetCategory && targetFolder !== '') {
-        targetCategory = {
-          name: targetFolder,
-          bookmarks: []
-        };
-        newData.categories.push(targetCategory);
-      }
-      
-      // Remove from source category if it exists
-      if (sourceCategory) {
-        sourceCategory.bookmarks = sourceCategory.bookmarks.filter(b => b.id !== bookmark.id);
-      }
-      
-      // Handle moving to root (no folder)
-      if (targetFolder === '') {
-        const rootCategory = newData.categories.find(cat => cat.name === '');
-        if (rootCategory) {
-          // Add to existing root category
-          const newBookmark = {...bookmark, folder: ''};
-          rootCategory.bookmarks.push(newBookmark);
-        } else {
-          // Create a new root category
-          newData.categories.push({
-            name: '',
-            bookmarks: [{...bookmark, folder: ''}]
-          });
+      try {
+        // Deep clone the current data
+        const newData = JSON.parse(JSON.stringify(prevData)) as OrganizedBookmarks;
+        
+        // Find the source category
+        const sourceCategory = newData.categories.find(cat => cat.name === bookmark.folder);
+        
+        // Find or create the target category
+        let targetCategory = newData.categories.find(cat => cat.name === targetFolder);
+        
+        if (!targetCategory && targetFolder !== '') {
+          targetCategory = {
+            name: targetFolder,
+            bookmarks: []
+          };
+          newData.categories.push(targetCategory);
         }
-      } else if (targetCategory) {
-        // Add to target category with updated folder reference
-        const newBookmark = {...bookmark, folder: targetFolder};
-        targetCategory.bookmarks.push(newBookmark);
+        
+        // Remove from source category if it exists
+        if (sourceCategory) {
+          sourceCategory.bookmarks = sourceCategory.bookmarks.filter(b => b.id !== bookmark.id);
+          
+          // Clean up empty categories
+          if (sourceCategory.bookmarks.length === 0) {
+            newData.categories = newData.categories.filter(cat => cat.name !== sourceCategory.name);
+          }
+        }
+        
+        // Handle moving to root (no folder)
+        if (targetFolder === '') {
+          const rootCategory = newData.categories.find(cat => cat.name === '');
+          if (rootCategory) {
+            // Add to existing root category
+            const newBookmark = {...bookmark, folder: ''};
+            rootCategory.bookmarks.push(newBookmark);
+          } else {
+            // Create a new root category
+            newData.categories.push({
+              name: '',
+              bookmarks: [{...bookmark, folder: ''}]
+            });
+          }
+        } else if (targetCategory) {
+          // Add to target category with updated folder reference
+          const newBookmark = {...bookmark, folder: targetFolder};
+          targetCategory.bookmarks.push(newBookmark);
+        }
+        
+        toast({
+          title: "Bookmark moved",
+          description: `Moved to "${targetFolder || 'Root'}"`,
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+        });
+        
+        return newData;
+      } catch (error) {
+        console.error("Error moving bookmark:", error);
+        toast({
+          title: "Error moving bookmark",
+          description: "An error occurred while moving the bookmark.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return prevData;
       }
-      
-      toast({
-        title: "Bookmark moved",
-        description: `Moved to "${targetFolder || 'Root'}"`,
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-      
-      return newData;
     });
   }, [toast]);
   

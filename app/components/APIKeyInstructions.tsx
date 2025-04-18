@@ -1,23 +1,25 @@
+
 'use client';
 
+import React from 'react';
 import {
-  Box,
-  Heading,
-  Text,
-  OrderedList,
-  ListItem,
-  Link,
-  Code,
-  Divider,
   Button,
-  useDisclosure,
   Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
+  ModalFooter,
   ModalBody,
   ModalCloseButton,
-  VStack
+  useDisclosure,
+  VStack,
+  Text,
+  Box,
+  Link,
+  OrderedList,
+  ListItem,
+  Code,
+  Divider
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 
@@ -26,64 +28,53 @@ export default function APIKeyInstructions() {
 
   return (
     <>
-      <Button colorScheme="blue" variant="outline" onClick={onOpen} size="sm">
-        How to Get an API Key
+      <Button size="sm" colorScheme="teal" variant="outline" onClick={onOpen}>
+        API Key Help
       </Button>
 
       <Modal isOpen={isOpen} onClose={onClose} size="lg">
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>How to Get an OpenAI API Key</ModalHeader>
+          <ModalHeader>Setting Up OpenAI API Key</ModalHeader>
           <ModalCloseButton />
-          <ModalBody pb={6}>
+          <ModalBody>
             <VStack spacing={4} align="stretch">
               <Text>
-                To use the AI features of this application, you need an OpenAI API key. Follow these steps to get one:
+                To use the AI features, you need to set up an OpenAI API key:
               </Text>
 
-              <OrderedList spacing={3} pl={4}>
+              <OrderedList spacing={3} pl={5}>
+                <ListItem>
+                  <Text>
+                    <Link href="https://platform.openai.com/signup" isExternal color="blue.500">
+                      Sign up for an OpenAI account <ExternalLinkIcon mx="2px" />
+                    </Link>{' '}
+                    if you don't have one already.
+                  </Text>
+                </ListItem>
                 <ListItem>
                   <Text>
                     Go to{' '}
-                    <Link href="https://platform.openai.com/signup" isExternal color="blue.500">
-                      OpenAI's signup page <ExternalLinkIcon mx="2px" />
-                    </Link>{' '}
-                    and create an account if you don't have one.
-                  </Text>
-                </ListItem>
-
-                <ListItem>
-                  <Text>
-                    Once logged in, navigate to{' '}
                     <Link href="https://platform.openai.com/api-keys" isExternal color="blue.500">
-                      API Keys <ExternalLinkIcon mx="2px" />
-                    </Link>
+                      API Keys section <ExternalLinkIcon mx="2px" />
+                    </Link>{' '}
+                    in your OpenAI account.
                   </Text>
                 </ListItem>
-
                 <ListItem>
-                  <Text>Click on "Create new secret key" and give it a name (e.g., "Bookmark Organizer")</Text>
+                  <Text>Click on "Create new secret key" and give it a name.</Text>
                 </ListItem>
-
                 <ListItem>
-                  <Text>Copy the generated API key (it starts with "sk-")</Text>
+                  <Text>Copy the generated API key (you won't be able to see it again).</Text>
                 </ListItem>
-
                 <ListItem>
-                  <Text>Open the <Code>.env.local</Code> file in the root of this project</Text>
+                  <Text>Create or edit a <Code>.env.local</Code> file in your project root and add:</Text>
+                  <Code p={2} mt={1} display="block" bg="gray.50">
+                    NEXT_PUBLIC_OPENAI_API_KEY=your_api_key_here
+                  </Code>
                 </ListItem>
-
                 <ListItem>
-                  <Text>
-                    Add your API key to the file like this:
-                    <Code p={2} mt={2} display="block" whiteSpace="pre">
-                      NEXT_PUBLIC_OPENAI_API_KEY=sk-your-api-key-here
-                    </Code>
-                  </Text>
-                </ListItem>
-
-                <ListItem>
-                  <Text>Save the file and restart the development server</Text>
+                  <Text>Restart your app for the changes to take effect.</Text>
                 </ListItem>
               </OrderedList>
 
@@ -110,8 +101,14 @@ export default function APIKeyInstructions() {
               </Link>
             </VStack>
           </ModalBody>
+
+          <ModalFooter>
+            <Button colorScheme="blue" mr={3} onClick={onClose}>
+              Close
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </>
   );
-} 
+}

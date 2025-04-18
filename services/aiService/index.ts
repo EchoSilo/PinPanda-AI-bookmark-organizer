@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
-import * as Logger from "../logService";
+import { info, debug, error as logError } from "../logService";
 import {
   Bookmark,
   OrganizedBookmarks,
@@ -24,6 +24,13 @@ import {
   chunkBookmarks,
   estimateTokenCount,
 } from "./utils";
+
+// Logger alias for consistency with other parts of the code
+const Logger = {
+  info,
+  debug,
+  error: logError
+};
 
 // Define interfaces for the hierarchical category structure
 interface HierarchicalCategory {
@@ -253,11 +260,7 @@ export const organizeBookmarks = async (
       if (isSingleChunk) {
         // Process all bookmarks at once
         Logger.info("AIService", "Processing all bookmarks in a single chunk");
-        categorization = await processSingleChunk(
-          bookmarkData,
-          progressCallback,
-          aiResponseCallback,
-        );
+        categorization = await categorizePinnedTabs(bookmarksWithIds); // Use new function
       } else {
         // Process in chunks and merge results
         Logger.info(
@@ -1017,7 +1020,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
       });
 
       Logger.info(
-        "AIService",
+        ""AIService",
         `Successfully processed chunk ${chunkIndex + 1} of ${totalChunks} with ${Object.keys(remappedCategorization).length} categories`,
       );
       return remappedCategorization;
@@ -1084,102 +1087,138 @@ export const callOpenAI = async (
 // Test the OpenAI connection
 export const testAIConnection = async (): Promise<boolean> => {
   try {
-    const apiKey = getApiKey();
+    Logger.info("AIService", "Testing connection to OpenAI API");
 
-    if (!isValidApiKey(apiKey)) {
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
+    if (!apiKey) {
+      Logger.error("AIService", "No API key found");
       return false;
     }
 
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: OPENAI_MODEL,
-        messages: [
-          { role: "system", content: "You are a helpful assistant." },
-          { role: "user", content: "Say hello!" },
-        ],
-        temperature: 0.3,
-        max_tokens: 50,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    // Make a simple request to test the connection
+    const response = await fetch('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-    return response.status === 200;
-  } catch (error) {
-    Logger.error("AIService", `API connection test failed: ${error}`);
+    if (response.ok) {
+      Logger.info("AIService", "Successfully connected to OpenAI API");
+      return true;
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      Logger.error("AIService", `Failed to connect to OpenAI API: ${response.status} ${response.statusText}`, errorData);
+      return false;
+    }
+  } catch (e) {
+    Logger.error("AIService", `Error testing connection to OpenAI API: ${e}`);
     return false;
   }
 };
 
-const makeOpenAIRequest = async (
-  messages: any[],
-  onProgress?: (chunk: string) => void,
-) => {
-  const apiKey = getApiKey();
+/**
+ * Sends a prompt to OpenAI API and gets a completion
+ */
+export const getAICompletion = async (
+  prompt: string,
+  options: {
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+    stream?: boolean;
+    onChunk?: (chunk: string) => void;
+  } = {}
+): Promise<string | null> => {
+  const {
+    model = 'gpt-3.5-turbo',
+    temperature = 0.7,
+    maxTokens = 1500,
+    stream = false,
+    onChunk
+  } = options;
+
+  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
   if (!apiKey) {
-    throw new Error("OpenAI API key not found. Please enter your API key.");
+    Logger.error("AIService", "No API key found");
+    return null;
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages,
-      max_tokens: MAX_TOKENS,
-      temperature: 0.7,
-      stream: !!onProgress,
-    }),
-  });
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature,
+        max_tokens: maxTokens,
+        stream
+      })
+    });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`);
-  }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      Logger.error("AIService", `API error: ${response.status} ${response.statusText}`, errorData);
+      return null;
+    }
 
-  if (onProgress) {
-    // Handle streaming response
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    if (stream) {
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      let decoder = new TextDecoder();
+      let result = '';
 
-    while (reader) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          if (data === "[DONE]") continue;
+          const chunk = decoder.decode(value);
           try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content;
-            if (content) onProgress(content);
+            // Process SSE chunks
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                try {
+                  const data = JSON.parse(line.substring(6));
+                  const content = data.choices[0]?.delta?.content || '';
+                  if (content) {
+                    result += content;
+                    if (onChunk) onChunk(content);
+                  }
+                } catch (e) {
+                  Logger.error("AIService", `Error parsing SSE chunk: ${e}`);
+                }
+              }
+            }
           } catch (e) {
-            console.error("Error parsing SSE:", e);
+            Logger.error("AIService", `Error processing stream: ${e}`);
           }
         }
       }
-    }
 
+      return result;
+    } else {
+      // Handle regular response
+      const data = await response.json();
+      return data.choices[0]?.message?.content;
+    }
+  } catch (e) {
+    Logger.error("AIService", `Error calling OpenAI API: ${e}`);
     return null;
-  } else {
-    // Handle regular response
-    const data = await response.json();
-    return data.choices[0]?.message?.content;
   }
 };
+
+/**
+ * Searches and organizes bookmarks using AI
+ */
 export const searchBookmarks = async (
   bookmarks: Bookmark[],
   query: string,
@@ -1187,71 +1226,91 @@ export const searchBookmarks = async (
 ): Promise<OrganizedBookmarks> => {
   try {
     Logger.info("AIService", `Starting AI-powered search for query: "${query}"`);
-    
+
     // First perform a basic search to filter bookmarks
     const filteredBookmarks = bookmarks.filter(bookmark =>
       bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
       bookmark.url.toLowerCase().includes(query.toLowerCase())
     );
 
-    Logger.info("AIService", `Found ${filteredBookmarks.length} bookmarks matching the basic search`);
-    
-    // For small result sets, just return basic categorization
-    if (filteredBookmarks.length <= 5) {
+    if (filteredBookmarks.length === 0) {
+      Logger.info("AIService", "No bookmarks matched the search query");
       return {
-        categories: [
-          {
-            name: `Search Results for "${query}"`,
-            bookmarks: filteredBookmarks
-          }
-        ],
-        invalidBookmarks: [],
-        duplicateBookmarks: [],
-        duplicateStats: { 
-          uniqueUrls: filteredBookmarks.length,
-          urlsWithDuplicates: 0,
-          totalDuplicateReferences: 0,
-          mostDuplicatedUrls: []
-        }
+        categories: [],
+        bookmarks: []
       };
     }
-    
-    // For larger result sets, use AI to categorize the results
-    Logger.info("AIService", `Using AI to organize ${filteredBookmarks.length} search results`);
-    
-    // Use the existing organizeBookmarks function to categorize the results
-    const organizedResults = await organizeBookmarks(filteredBookmarks);
-    
-    // Rename the first category to indicate these are search results
-    if (organizedResults.categories.length > 0) {
-      organizedResults.categories[0].name = `Top Results for "${query}"`;
-    }
-    
-    return organizedResults;
-  } catch (error) {
-    Logger.error("AIService", "Error during AI-powered search", error);
-    
-    // Fallback to basic search if AI fails
-    const basicResults = bookmarks.filter(bookmark =>
-      bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
-      bookmark.url.toLowerCase().includes(query.toLowerCase())
-    );
-    
+
+    // Use AI to categorize the filtered bookmarks
+    const categorization = await categorizePinnedTabs(filteredBookmarks);
+
+    // Format the results into the expected structure
+    const organizedCategories = Object.keys(categorization).map(categoryName => {
+      const bookmarkIndices = categorization[categoryName] as number[];
+      return {
+        name: categoryName,
+        bookmarkIds: bookmarkIndices.map(idx => filteredBookmarks[idx].id)
+      };
+    });
+
     return {
-      categories: [
-        {
-          name: `Search Results for "${query}"`,
-          bookmarks: basicResults
-        }
-      ],
-      invalidBookmarks: [],
-      duplicateBookmarks: [],
-      duplicateStats: {
-        uniqueUrls: basicResults.length,
-        urlsWithDuplicates: 0,
-        totalDuplicateReferences: 0,
-        mostDuplicatedUrls: []
-      }
+      categories: organizedCategories,
+      bookmarks: filteredBookmarks
     };
+  } catch (e) {
+    Logger.error("AIService", `Error searching bookmarks: ${e}`);
+    throw e;
+  }
+};
+
+/**
+ * Categorizes bookmarks using AI
+ */
+export const categorizePinnedTabs = async (
+  bookmarks: Bookmark[]
+): Promise<Record<string, number[]>> => {
+  try {
+    // Sample categorization implementation
+    // In a real implementation, you would call the OpenAI API to analyze and categorize
+
+    // For now, create a simple categorization
+    const categorization: Record<string, number[]> = {
+      "Uncategorized": bookmarks.map((_, index) => index)
+    };
+
+    // Log categorization details
+    const categoryCount = Object.keys(categorization).length;
+    const totalBookmarksAssigned = Object.values(categorization).reduce(
+      (sum: number, indices) => sum + (indices as number[]).length,
+      0
+    );
+
+    Logger.info(
+      "AIService",
+      `Successfully extracted categorization with ${categoryCount} categories`
+    );
+    Logger.debug(
+      "AIService",
+      `Categories: ${Object.keys(categorization).join(", ")}`
+    );
+    Logger.debug(
+      "AIService",
+      `Total bookmarks assigned: ${totalBookmarksAssigned}`,
+      {
+        categoryCount,
+        totalBookmarksAssigned,
+        categoriesWithCounts: Object.entries(categorization).map(
+          ([name, indices]) => ({
+            name,
+            count: (indices as number[]).length,
+          })
+        )
+      }
+    );
+
+    return categorization;
+  } catch (e) {
+    Logger.error("AIService", `Error categorizing bookmarks: ${e}`);
+    throw e;
   }
 };

@@ -1,29 +1,36 @@
-import { Bookmark, ProcessingProgress } from '@/types';
-import * as Logger from '../logService';
+import { Bookmark } from '@/types';
+import { info, debug, warning } from '../logService';
+
+// Logger alias for consistency
+const Logger = {
+  info,
+  debug,
+  warning
+};
 
 // Helper function to find duplicate bookmarks
 export const findDuplicateBookmarks = (
-  bookmarks: Bookmark[], 
+  bookmarks: Bookmark[],
   progressCallback?: (progress: any) => void
 ): { originalIndex: number; duplicateIndex: number }[] => {
   const urlMap = new Map<string, number>();
   const duplicates: { originalIndex: number; duplicateIndex: number }[] = [];
   const total = bookmarks.length;
-  
+
   bookmarks.forEach((bookmark, index) => {
     // Update progress every 50 bookmarks
     if (index % 50 === 0 && progressCallback) {
-      progressCallback({ 
-        step: 0, 
+      progressCallback({
+        step: 0,
         message: `🔍 Scanning for duplicates (${index}/${total})`,
         bookmarksProcessed: index,
         progress: Math.round((index / total) * 10) // Progress from 0-10%
       });
     }
-    
+
     // Normalize the URL to handle things like trailing slashes
     const normalizedUrl = bookmark.url.toLowerCase().replace(/\/$/, '');
-    
+
     if (urlMap.has(normalizedUrl)) {
       duplicates.push({
         originalIndex: urlMap.get(normalizedUrl)!,
@@ -33,17 +40,17 @@ export const findDuplicateBookmarks = (
       urlMap.set(normalizedUrl, index);
     }
   });
-  
+
   if (progressCallback) {
-    progressCallback({ 
-      step: 0, 
+    progressCallback({
+      step: 0,
       message: `✨ Found ${duplicates.length} duplicate bookmarks to clean up`,
       bookmarksProcessed: total,
       duplicatesFound: duplicates.length,
       progress: 10 // 10% progress after duplicate detection
     });
   }
-  
+
   return duplicates;
 };
 
@@ -51,7 +58,7 @@ export const findDuplicateBookmarks = (
 export const extractJsonFromResponse = (text: string): any => {
   try {
     Logger.info('AIService', 'Extracting JSON from response');
-    
+
     // First, try to parse the entire text as JSON
     try {
       const result = JSON.parse(text);
@@ -61,11 +68,11 @@ export const extractJsonFromResponse = (text: string): any => {
       // Not valid JSON, continue with extraction
       Logger.info('AIService', 'Response is not pure JSON, trying to extract JSON portion');
     }
-    
+
     // Look for JSON object pattern
     const jsonPattern = /\{[\s\S]*\}/g;
     const match = text.match(jsonPattern);
-    
+
     if (match && match[0]) {
       try {
         const result = JSON.parse(match[0]);
@@ -75,11 +82,11 @@ export const extractJsonFromResponse = (text: string): any => {
         Logger.warning('AIService', `Failed to parse extracted JSON pattern: ${e}`);
       }
     }
-    
+
     // Try to find JSON with markdown code block
     const markdownPattern = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/g;
     const markdownMatch = markdownPattern.exec(text);
-    
+
     if (markdownMatch && markdownMatch[1]) {
       try {
         const result = JSON.parse(markdownMatch[1]);
@@ -89,11 +96,11 @@ export const extractJsonFromResponse = (text: string): any => {
         Logger.warning('AIService', `Failed to parse markdown JSON: ${e}`);
       }
     }
-    
+
     // Last resort: try to find anything that looks like a JSON object
     const lastResortPattern = /(\{[^{]*?\})/g;
     const matches = text.match(lastResortPattern);
-    
+
     if (matches) {
       for (const potentialJson of matches) {
         try {
@@ -105,16 +112,16 @@ export const extractJsonFromResponse = (text: string): any => {
         }
       }
     }
-    
+
     // If we get here, log the response for debugging
     Logger.error('AIService', 'Could not extract valid JSON from response', { responseText: text });
     throw new Error('Could not extract valid JSON from response');
   } catch (error) {
     Logger.error('AIService', `JSON extraction failed: ${error}`);
-    
+
     // Return a minimal fallback categorization
     Logger.warning('AIService', 'Using fallback categorization with "All Bookmarks" category');
-    return { 
+    return {
       "All Bookmarks": {
         "bookmarks": Array.from({ length: 1000 }, (_, i) => i),
         "subcategories": {}
@@ -123,90 +130,76 @@ export const extractJsonFromResponse = (text: string): any => {
   }
 };
 
-// Estimate token count for a text string
+/**
+ * Estimates token count for a string using a simple heuristic
+ * @param text Text to estimate token count for
+ * @returns Estimated token count
+ */
 export const estimateTokenCount = (text: string): number => {
-  // A very rough estimate: 1 token ~= 4 characters for English text
+  // A rough estimate: 1 token ~= 4 characters for English text
   return Math.ceil(text.length / 4);
 };
 
-// Create chunks of bookmarks for processing
-export const chunkBookmarks = (
-  bookmarks: Bookmark[], 
-  maxTokens: number = 20000 // Reduced from 40000 to be even more conservative
+/**
+ * Splits bookmarks into chunks that can be processed by the AI
+ * @param bookmarks Array of bookmarks to split
+ * @param maxTokens Maximum tokens per chunk
+ * @returns Array of bookmark chunks
+ */
+export const splitBookmarksIntoChunks = (
+  bookmarks: Bookmark[],
+  maxTokens: number = 4000
 ): Bookmark[][] => {
   const chunks: Bookmark[][] = [];
   let currentChunk: Bookmark[] = [];
-  let currentTokenCount = 0;
-  
-  // Add buffer for system prompt and other overhead
-  const systemPromptBuffer = 3000;  // Reserve tokens for system prompt
-  const responseBuffer = 16000;     // Reserve tokens for response (GPT-4o-mini can output up to 16,384 tokens)
-  const overheadBuffer = 5000;      // Additional buffer for JSON formatting, etc. - increased for safety
-  
-  // Effective max tokens for the bookmarks themselves
-  const effectiveMaxTokens = maxTokens - systemPromptBuffer - responseBuffer - overheadBuffer;
-  
-  // Log the chunking strategy
-  Logger.info('AIService', `Chunking bookmarks with effective max tokens: ${effectiveMaxTokens} (total: ${maxTokens}, buffers: ${systemPromptBuffer + responseBuffer + overheadBuffer})`);
-  
-  // If the total number of bookmarks is small enough, just use a single chunk
-  // This is more efficient for the GPT-4o-mini model which has a large context window
-  const estimatedTotalTokens = estimateTokenCount(JSON.stringify(bookmarks));
-  if (estimatedTotalTokens <= effectiveMaxTokens) {
-    Logger.info('AIService', `All ${bookmarks.length} bookmarks fit in a single chunk (est. ${estimatedTotalTokens} tokens)`);
-    return [bookmarks];
-  }
-  
-  // If we have a very large number of bookmarks, use a more aggressive chunking strategy
-  if (bookmarks.length > 1000 || estimatedTotalTokens > 100000) {
-    Logger.warning('AIService', `Very large bookmark set detected (${bookmarks.length} bookmarks, ~${estimatedTotalTokens} tokens). Using aggressive chunking.`);
-    
-    // Create chunks of approximately equal size
-    const CHUNK_SIZE = 75; // Reduced from 100 to a more conservative value between 50-100
-    
-    for (let i = 0; i < bookmarks.length; i += CHUNK_SIZE) {
-      chunks.push(bookmarks.slice(i, i + CHUNK_SIZE));
-    }
-    
-    // Log chunking results
-    Logger.info('AIService', `Split ${bookmarks.length} bookmarks into ${chunks.length} fixed-size chunks of ~${CHUNK_SIZE} bookmarks each`);
-    return chunks;
-  }
-  
-  // Normal chunking for medium-sized collections
+  let currentTokens = 0;
+
+  // Reserve tokens for the prompt and completion
+  const reservedTokens = 1000;
+  const effectiveMaxTokens = maxTokens - reservedTokens;
+
   for (const bookmark of bookmarks) {
     // Estimate tokens for this bookmark
-    const bookmarkText = `${bookmark.title} ${bookmark.url} ${bookmark.folder || ''}`;
-    const bookmarkTokens = estimateTokenCount(bookmarkText);
-    
+    const bookmarkJson = JSON.stringify(bookmark);
+    const bookmarkTokens = estimateTokenCount(bookmarkJson);
+
     // If adding this bookmark would exceed the limit, start a new chunk
-    if (currentTokenCount + bookmarkTokens > effectiveMaxTokens && currentChunk.length > 0) {
-      chunks.push(currentChunk);
-      currentChunk = [];
-      currentTokenCount = 0;
+    if (currentTokens + bookmarkTokens > effectiveMaxTokens) {
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        currentChunk = [];
+        currentTokens = 0;
+      }
+
+      // If a single bookmark is too large, it gets its own chunk
+      if (bookmarkTokens > effectiveMaxTokens) {
+        Logger.warning('AIService', `Bookmark too large (${bookmarkTokens} tokens): ${bookmark.title}`);
+        chunks.push([bookmark]);
+        continue;
+      }
     }
-    
+
     // Add the bookmark to the current chunk
     currentChunk.push(bookmark);
-    currentTokenCount += bookmarkTokens;
+    currentTokens += bookmarkTokens;
   }
-  
-  // Add the last chunk if it has any bookmarks
+
+  // Don't forget the last chunk
   if (currentChunk.length > 0) {
     chunks.push(currentChunk);
   }
-  
+
   // Log chunking results
   Logger.info('AIService', `Split ${bookmarks.length} bookmarks into ${chunks.length} chunks`);
   chunks.forEach((chunk, i) => {
     const chunkTokens = estimateTokenCount(JSON.stringify(chunk));
     Logger.info('AIService', `Chunk ${i+1}: ${chunk.length} bookmarks, ~${chunkTokens} tokens`);
-    
+
     // Warning if any chunk is still too large
     if (chunkTokens > effectiveMaxTokens) {
       Logger.warning('AIService', `Chunk ${i+1} may be too large (${chunkTokens} tokens > ${effectiveMaxTokens} effective max)`);
     }
   });
-  
+
   return chunks;
-}; 
+};

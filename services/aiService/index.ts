@@ -9,6 +9,9 @@ import {
   ProcessingProgress,
   AIResponse,
 } from "@/types";
+
+// Global cancel controller to allow canceling operations
+let cancelController: AbortController | null = null;
 import {
   getApiKey,
   PROCESSING_TIMEOUT_MS,
@@ -452,6 +455,9 @@ IMPORTANT INSTRUCTIONS:
 9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
 10. AVOID overly broad categories like "Finance", "Technology", or "Media" - use more precise themes
 
+RESPONSE FORMAT:
+Your ENTIRE response must be ONLY a valid JSON object with NO additional text, explanations, or markdown formatting.
+Do not wrap the JSON in code blocks or add any other text before or after the JSON.
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;
 
@@ -1048,6 +1054,17 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
   return null;
 };
 
+// Function to cancel ongoing processes
+export const cancelOngoingProcess = (): void => {
+  if (cancelController) {
+    Logger.info("AIService", "Canceling ongoing process");
+    cancelController.abort();
+    cancelController = null;
+  } else {
+    Logger.info("AIService", "No ongoing process to cancel");
+  }
+};
+
 // Call the OpenAI API
 export const callOpenAI = async (
   systemPrompt: string,
@@ -1060,6 +1077,10 @@ export const callOpenAI = async (
   }
 
   try {
+    // Create a new abort controller for this request
+    cancelController = new AbortController();
+    const signal = cancelController.signal;
+
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -1076,11 +1097,20 @@ export const callOpenAI = async (
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
+        signal, // Add abort signal to request
       },
     );
 
+    // Clear the cancelController once the request completes
+    cancelController = null;
     return { content: response.data.choices[0].message.content };
   } catch (error) {
+    // Check if this was an abort error
+    if (axios.isCancel(error)) {
+      Logger.info("AIService", "Request was canceled");
+      throw new Error("Request was canceled");
+    }
+    
     Logger.error("AIService", `OpenAI API call failed: ${error}`);
     throw error;
   }

@@ -22,11 +22,14 @@ import {
   AccordionItem,
   AccordionButton,
   AccordionPanel,
-  AccordionIcon
+  AccordionIcon,
+  Button,
+  useToast
 } from '@chakra-ui/react';
-import { FiCpu, FiSearch, FiCheckCircle, FiAlertCircle, FiClock } from 'react-icons/fi';
+import { FiCpu, FiSearch, FiCheckCircle, FiAlertCircle, FiClock, FiX } from 'react-icons/fi';
 import { ProcessingProgress } from '@/types';
 import { useState, useEffect } from 'react';
+import { cancelOngoingProcess } from '@/services/aiService';
 
 interface AIProcessingScreenProps {
   progress: ProcessingProgress;
@@ -35,13 +38,14 @@ interface AIProcessingScreenProps {
 export default function AIProcessingScreen({ progress }: AIProcessingScreenProps) {
   const [processingTime, setProcessingTime] = useState<number>(0);
   const [startTime] = useState<number>(Date.now());
+  const toast = useToast();
 
   // Update processing time every second
   useEffect(() => {
     const interval = setInterval(() => {
       setProcessingTime(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [startTime]);
 
@@ -77,6 +81,24 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleCancel = async () => {
+    try {
+      await cancelOngoingProcess();
+      toast({
+        title: 'Process Cancelled',
+        status: 'success',
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error Cancelling Process',
+        description: error.message,
+        status: 'error',
+        isClosable: true,
+      });
+    }
+  };
+
   return (
     <Card variant="outline" width="100%">
       <CardBody>
@@ -110,7 +132,7 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
                 </HStack>
               </StatHelpText>
             </Stat>
-            
+
             {progress.bookmarksProcessed !== undefined && (
               <Stat>
                 <StatLabel>Bookmarks</StatLabel>
@@ -123,7 +145,7 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
                 </StatHelpText>
               </Stat>
             )}
-            
+
             {progress.duplicatesFound !== undefined && (
               <Stat>
                 <StatLabel>Duplicates</StatLabel>
@@ -150,7 +172,7 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
                   <strong>{progress.duplicateStats.totalDuplicateReferences}</strong> duplicate references found
                 </Text>
               </SimpleGrid>
-              
+
               {progress.duplicateStats.mostDuplicatedUrls.length > 0 && (
                 <Box mt={2}>
                   <Text fontSize="xs" fontWeight="medium" mb={1}>Most duplicated URLs:</Text>
@@ -181,19 +203,19 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
                     <Badge colorScheme="blue">{progress.step}</Badge>
                     <Text>{getStepName(progress.step)}</Text>
                   </HStack>
-                  
+
                   <HStack>
                     <Text fontWeight="medium">Progress:</Text>
                     <Text>{progress.progress ?? 0}%</Text>
                   </HStack>
-                  
+
                   {progress.validationProgress !== undefined && (
                     <HStack>
                       <Text fontWeight="medium">Link Validation:</Text>
                       <Text>{Math.round((progress.validationProgress ?? 0) * 100)}% complete</Text>
                     </HStack>
                   )}
-                  
+
                   <Box>
                     <Text fontWeight="medium" mb={1}>Status Message:</Text>
                     <Box p={2} borderWidth="1px" borderRadius="md" bg="gray.50">
@@ -204,8 +226,26 @@ export default function AIProcessingScreen({ progress }: AIProcessingScreenProps
               </AccordionPanel>
             </AccordionItem>
           </Accordion>
+          <Box textAlign="center" mt={4}>
+            <HStack spacing={3} justify="center">
+              <Badge colorScheme="blue" p={2} borderRadius="md">
+                <HStack spacing={2}>
+                  <Icon as={FiClock} />
+                  <Text>Processing time: {formatTime(processingTime)}</Text>
+                </HStack>
+              </Badge>
+              <Button 
+                colorScheme="orange" 
+                leftIcon={<Icon as={FiX} />} 
+                size="sm" 
+                onClick={handleCancel}
+              >
+                Cancel Process
+              </Button>
+            </HStack>
+          </Box>
         </VStack>
       </CardBody>
     </Card>
   );
-} 
+}

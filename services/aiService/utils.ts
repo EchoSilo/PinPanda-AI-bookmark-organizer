@@ -62,9 +62,21 @@ export const extractJsonFromResponse = (text: string): any => {
       Logger.info('AIService', 'Response is not pure JSON, trying to extract JSON portion');
     }
     
+    // Preprocessing: Remove any markdown code block formatting
+    let processedText = text.replace(/```json\s+|\s+```|```\s+|\s+```/g, '');
+    
+    // Try parsing again after removing markdown
+    try {
+      const result = JSON.parse(processedText);
+      Logger.info('AIService', 'Successfully parsed JSON after removing markdown');
+      return result;
+    } catch (e) {
+      Logger.info('AIService', 'Failed to parse after removing markdown, continuing with pattern extraction');
+    }
+    
     // Look for JSON object pattern
     const jsonPattern = /\{[\s\S]*\}/g;
-    const match = text.match(jsonPattern);
+    const match = processedText.match(jsonPattern);
     
     if (match && match[0]) {
       try {

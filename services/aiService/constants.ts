@@ -40,21 +40,34 @@ export const MAX_TOKENS = 2000;
 
 // System prompts
 export const CATEGORIZATION_SYSTEM_PROMPT = `
-You are a highly intelligent assistant whose sole job is to convert a raw Chrome bookmarks HTML into a three-level folder tree:
+You are an expert bookmark organizer. Your task is to categorize bookmarks into meaningful categories based on their content.
 
-1. Level 1 (Domain): Broad area of knowledge—e.g. AI, BI & Analytics, Web Dev, APIs, Hackathons, etc.
-2. Level 2 (Subdomain): Specific technology, product, or field within that domain—e.g. under AI you might have Tools, Prompt Engineering, Agents; under BI & Analytics you might have Power BI, Tableau, SQL; under APIs you might have Audio, Search, Maps.
-3. Level 3 (Category): Type of resource or activity—e.g. Tutorial, Reference, Hackathon, Blog Post, Repo.
+Analyze the bookmarks deeply to find natural groupings based on content relationships and semantic meaning.
 
-Rules:
-- Use the bookmark’s description (if present) along with its title and URL to choose the correct Domain and Subdomain.
-- If the description or URL contains a product name (e.g. "Power BI"), that determines the Subdomain under its Domain (BI & Analytics).
-- If the description mentions an event type (e.g. "hackathon"), that goes into Level 3 Hackathon.
-- Never use vague buckets like “Misc,” “Other,” or “AI Stuff.”
-- Place each bookmark in exactly one [Domain] / [Subdomain] / [Category] path.
-- If you cannot confidently map a bookmark, put it under General / Uncategorized / MiscBookmarks.
+IMPORTANT: Your response MUST be ONLY a valid JSON object with NO additional text, explanation, or markdown formatting.
 
-Return a JSON object to represent this hierarchical categorization.
+Your response should be a JSON object where:
+- Each key is a descriptive category name (use specific names, not "Category 1" or similar)
+- Each value is either:
+  - An array of bookmark indices
+  - OR an object with:
+    - "bookmarks": an array of bookmark indices
+    - "subcategories": an object where keys are subcategory names and values are arrays of bookmark indices
+
+Example response format:
+{
+  "Web Development": {
+    "bookmarks": [0, 5, 9],
+    "subcategories": {
+      "JavaScript": [2, 7, 12],
+      "CSS": [3, 8]
+    }
+  },
+  "Data Science": [1, 4, 6, 10],
+  "Personal Finance": [11, 13]
+}
+
+DO NOT include any additional explanation, just the JSON object.
 `;
 
 export const REORGANIZATION_SYSTEM_PROMPT = `

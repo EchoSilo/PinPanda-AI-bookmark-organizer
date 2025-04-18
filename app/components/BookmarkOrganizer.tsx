@@ -257,39 +257,140 @@ const DashboardSummary = ({ organizedBookmarks }: { organizedBookmarks: Organize
   );
 };
 
+// Helper to build folder hierarchy
+interface FolderNode {
+  name: string;
+  path: string;
+  children: Record<string, FolderNode>;
+  bookmarks: Bookmark[];
+  bookmarkCount: number;
+}
+
+// FolderTreeItem component for rendering a single folder in the folder tree
+const FolderTreeItem = ({ 
+  node, 
+  level = 0,
+  selectedPath,
+  onSelectFolder,
+  expandedFolders,
+  toggleFolder,
+  onDrop
+}: { 
+  node: FolderNode; 
+  level?: number;
+  selectedPath: string;
+  onSelectFolder: (path: string) => void;
+  expandedFolders: string[];
+  toggleFolder: (path: string) => void;
+  onDrop: (bookmark: Bookmark, targetFolder: string) => void;
+}) => {
+  const hasChildren = Object.keys(node.children).length > 0;
+  const isExpanded = expandedFolders.includes(node.path);
+  const isSelected = selectedPath === node.path;
+  
+  const bgColor = useColorModeValue('white', 'gray.700');
+  const hoverBgColor = useColorModeValue('gray.100', 'gray.600');
+  const selectedBgColor = useColorModeValue('blue.50', 'blue.900');
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const bookmarkData = e.dataTransfer.getData('bookmark');
+    if (bookmarkData) {
+      const bookmark = JSON.parse(bookmarkData);
+      onDrop(bookmark, node.path);
+    }
+  };
+  
+  return (
+    <Box>
+      <HStack 
+        p={2}
+        pl={`${(level * 12) + 8}px`}
+        borderRadius="md"
+        bg={isSelected ? selectedBgColor : 'transparent'}
+        _hover={{ bg: isSelected ? selectedBgColor : hoverBgColor }}
+        cursor="pointer"
+        onClick={() => onSelectFolder(node.path)}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {hasChildren && (
+          <Icon 
+            as={isExpanded ? FiChevronDown : FiChevronRight} 
+            color="gray.500"
+            boxSize="14px"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFolder(node.path);
+            }}
+          />
+        )}
+        {!hasChildren && (
+          <Box width="14px" />
+        )}
+        <Icon as={FiFolder} color="blue.500" />
+        <Text fontWeight={isSelected ? "bold" : "normal"} isTruncated>
+          {node.name}
+        </Text>
+        <Badge ml="auto">{node.bookmarkCount}</Badge>
+      </HStack>
+      
+      {isExpanded && hasChildren && (
+        <Box>
+          {Object.values(node.children)
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((childNode) => (
+              <FolderTreeItem
+                key={childNode.path}
+                node={childNode}
+                level={level + 1}
+                selectedPath={selectedPath}
+                onSelectFolder={onSelectFolder}
+                expandedFolders={expandedFolders}
+                toggleFolder={toggleFolder}
+                onDrop={onDrop}
+              />
+            ))}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 // FolderTree component for side navigation
 const FolderTree = ({ 
-  categories, 
+  folderHierarchy, 
   onSelectFolder, 
-  selectedFolder, 
+  selectedPath, 
   onDrop,
   expandedFolders,
   toggleFolder,
 }: { 
-  categories: { name: string; bookmarks: Bookmark[] }[]; 
-  onSelectFolder: (folderName: string) => void;
-  selectedFolder: string | null;
+  folderHierarchy: FolderNode;
+  onSelectFolder: (path: string) => void;
+  selectedPath: string;
   onDrop: (bookmark: Bookmark, targetFolder: string) => void;
   expandedFolders: string[];
-  toggleFolder: (folderName: string) => void;
+  toggleFolder: (path: string) => void;
 }) => {
   const bgColor = useColorModeValue('white', 'gray.700');
   const hoverBgColor = useColorModeValue('gray.100', 'gray.600');
   const selectedBgColor = useColorModeValue('blue.50', 'blue.900');
   
-  // Sort categories alphabetically
-  const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name));
-
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, folderName: string) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const bookmarkData = e.dataTransfer.getData('bookmark');
     if (bookmarkData) {
       const bookmark = JSON.parse(bookmarkData);
-      onDrop(bookmark, folderName);
+      onDrop(bookmark, '');
     }
   };
   
@@ -311,51 +412,37 @@ const FolderTree = ({
       <Box 
         p={2}
         borderRadius="md"
-        bg={selectedFolder === null ? selectedBgColor : 'transparent'}
-        _hover={{ bg: selectedFolder === null ? selectedBgColor : hoverBgColor }}
+        bg={selectedPath === '' ? selectedBgColor : 'transparent'}
+        _hover={{ bg: selectedPath === '' ? selectedBgColor : hoverBgColor }}
         cursor="pointer"
         onClick={() => onSelectFolder('')}
         onDragOver={handleDragOver}
-        onDrop={(e) => handleDrop(e, '')}
+        onDrop={handleDrop}
       >
         <HStack>
           <Icon as={FiFolder} color="blue.500" />
-          <Text fontWeight={selectedFolder === null ? "bold" : "normal"}>All Bookmarks</Text>
-          <Badge ml="auto">{sortedCategories.reduce((sum, cat) => sum + cat.bookmarks.length, 0)}</Badge>
+          <Text fontWeight={selectedPath === '' ? "bold" : "normal"}>All Bookmarks</Text>
+          <Badge ml="auto">{folderHierarchy.bookmarkCount}</Badge>
         </HStack>
       </Box>
       
-      {/* Category folders */}
-      {sortedCategories.map((category) => (
-        <Box key={category.name}>
-          <HStack 
-            p={2}
-            borderRadius="md"
-            bg={selectedFolder === category.name ? selectedBgColor : 'transparent'}
-            _hover={{ bg: selectedFolder === category.name ? selectedBgColor : hoverBgColor }}
-            cursor="pointer"
-            onClick={() => onSelectFolder(category.name)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, category.name)}
-          >
-            <Icon 
-              as={expandedFolders.includes(category.name) ? FiChevronDown : FiChevronRight} 
-              color="gray.500"
-              boxSize="14px"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFolder(category.name);
-              }}
+      {/* Folder Hierarchy */}
+      <Box>
+        {Object.values(folderHierarchy.children)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((rootFolder) => (
+            <FolderTreeItem
+              key={rootFolder.path}
+              node={rootFolder}
+              selectedPath={selectedPath}
+              onSelectFolder={onSelectFolder}
+              expandedFolders={expandedFolders}
+              toggleFolder={toggleFolder}
+              onDrop={onDrop}
             />
-            <Icon as={FiFolder} color="blue.500" />
-            <Text fontWeight={selectedFolder === category.name ? "bold" : "normal"} isTruncated>
-              {category.name}
-            </Text>
-            <Badge ml="auto">{category.bookmarks.length}</Badge>
-          </HStack>
-        </Box>
-      ))}
-
+          ))}
+      </Box>
+      
       {/* Add Folder button */}
       <Box mt={2}>
         <Button 
@@ -369,6 +456,58 @@ const FolderTree = ({
         </Button>
       </Box>
     </VStack>
+  );
+};
+
+// FolderCard component for displaying folder in grid view
+const FolderCard = ({ 
+  folder, 
+  bookmarkCount, 
+  onClick 
+}: { 
+  folder: string; 
+  bookmarkCount: number; 
+  onClick: () => void; 
+}) => {
+  const bgColor = useColorModeValue('white', 'gray.700');
+  const hoverBgColor = useColorModeValue('gray.50', 'gray.600');
+  
+  // Get folder name without path
+  const folderName = folder.split('/').pop() || folder;
+  
+  return (
+    <Card 
+      borderWidth="1px" 
+      borderRadius="md" 
+      overflow="hidden"
+      bg={bgColor} 
+      _hover={{ 
+        bg: hoverBgColor,
+        shadow: 'md',
+        transform: 'translateY(-2px)',
+        transition: 'all 0.2s'
+      }}
+      transition="all 0.2s"
+      h="full"
+      onClick={onClick}
+      cursor="pointer"
+    >
+      <CardBody p={3}>
+        <VStack spacing={2} align="center">
+          <Icon as={FiFolder} color="blue.500" boxSize="32px" />
+          <Text 
+            fontWeight="medium"
+            fontSize="sm"
+            noOfLines={2}
+            textAlign="center"
+            width="100%"
+          >
+            {folderName}
+          </Text>
+          <Badge colorScheme="blue">{bookmarkCount}</Badge>
+        </VStack>
+      </CardBody>
+    </Card>
   );
 };
 
@@ -484,18 +623,47 @@ const BookmarkListItem = ({
   );
 };
 
+// FolderListItem component for displaying folder in list view
+const FolderListItem = ({ 
+  folder, 
+  bookmarkCount, 
+  onClick 
+}: { 
+  folder: string; 
+  bookmarkCount: number; 
+  onClick: () => void; 
+}) => {
+  // Get folder name without path
+  const folderName = folder.split('/').pop() || folder;
+  
+  return (
+    <HStack 
+      p={2}
+      borderWidth="1px"
+      borderRadius="md"
+      _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
+      cursor="pointer"
+      onClick={onClick}
+    >
+      <Icon as={FiFolder} color="blue.500" boxSize="16px" />
+      <Text isTruncated>{folderName}</Text>
+      <Badge ml="auto">{bookmarkCount}</Badge>
+    </HStack>
+  );
+};
+
 // Bookmark Detail Modal
 const BookmarkDetailModal = ({ 
   isOpen, 
   onClose, 
   bookmark,
-  categories,
+  folderPaths,
   onMoveBookmark
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   bookmark: Bookmark | null;
-  categories: { name: string; bookmarks: Bookmark[] }[];
+  folderPaths: string[];
   onMoveBookmark: (bookmark: Bookmark, targetCategory: string) => void;
 }) => {
   if (!bookmark) return null;
@@ -510,11 +678,11 @@ const BookmarkDetailModal = ({
   };
   
   const faviconUrl = getFaviconUrl(bookmark.url);
-  const [selectedCategory, setSelectedCategory] = useState<string>(bookmark.folder || '');
+  const [selectedFolder, setSelectedFolder] = useState<string>(bookmark.folder || '');
   
   const handleMoveBookmark = () => {
-    if (selectedCategory && selectedCategory !== bookmark.folder) {
-      onMoveBookmark(bookmark, selectedCategory);
+    if (selectedFolder !== bookmark.folder) {
+      onMoveBookmark(bookmark, selectedFolder);
       onClose();
     }
   };
@@ -554,11 +722,12 @@ const BookmarkDetailModal = ({
                 <InputGroup>
                   <Input 
                     as="select"
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    value={selectedFolder}
+                    onChange={(e) => setSelectedFolder(e.target.value)}
                   >
-                    {categories.map(cat => (
-                      <option key={cat.name} value={cat.name}>{cat.name}</option>
+                    <option value="">Root</option>
+                    {folderPaths.map(path => (
+                      <option key={path} value={path}>{path}</option>
                     ))}
                   </Input>
                 </InputGroup>
@@ -569,7 +738,7 @@ const BookmarkDetailModal = ({
                 size="sm" 
                 width="100%"
                 onClick={handleMoveBookmark}
-                isDisabled={selectedCategory === bookmark.folder}
+                isDisabled={selectedFolder === bookmark.folder}
               >
                 Move Bookmark
               </Button>
@@ -608,13 +777,48 @@ const BookmarkDetailModal = ({
   );
 };
 
+// Breadcrumb navigation component
+const FolderBreadcrumb = ({ 
+  currentPath, 
+  onNavigate 
+}: { 
+  currentPath: string; 
+  onNavigate: (path: string) => void; 
+}) => {
+  const pathParts = currentPath ? currentPath.split('/') : [];
+  
+  return (
+    <Breadcrumb spacing="8px" separator={<Icon as={FiChevronRight} color="gray.500" />}>
+      <BreadcrumbItem>
+        <BreadcrumbLink onClick={() => onNavigate('')}>
+          <HStack>
+            <Icon as={FiFolder} color="blue.500" />
+            <Text>All Bookmarks</Text>
+          </HStack>
+        </BreadcrumbLink>
+      </BreadcrumbItem>
+      
+      {pathParts.map((part, index) => {
+        const path = pathParts.slice(0, index + 1).join('/');
+        return (
+          <BreadcrumbItem key={path} isCurrentPage={index === pathParts.length - 1}>
+            <BreadcrumbLink onClick={() => onNavigate(path)}>
+              {part}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+        );
+      })}
+    </Breadcrumb>
+  );
+};
+
 interface BookmarkOrganizerProps {
   organizedBookmarks: OrganizedBookmarks;
   onReset: () => void;
 }
 
 export default function BookmarkOrganizer({ organizedBookmarks, onReset }: BookmarkOrganizerProps) {
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isExporting, setIsExporting] = useState(false);
@@ -632,12 +836,126 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
     setBookmarkData(organizedBookmarks);
   }, [organizedBookmarks]);
   
-  // Filter bookmarks based on search term and current folder
-  const filteredBookmarks = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase();
+  // Build folder hierarchy from category names
+  const folderHierarchy = useMemo(() => {
+    const root: FolderNode = {
+      name: 'Root',
+      path: '',
+      children: {},
+      bookmarks: [],
+      bookmarkCount: 0
+    };
     
-    // If searching, show all matching bookmarks across all categories
+    bookmarkData.categories.forEach(category => {
+      // Build path parts, empty string becomes root
+      const pathParts = category.name ? category.name.split('/') : [];
+      let currentNode = root;
+      let currentPath = '';
+      
+      // Build folder hierarchy
+      for (let i = 0; i < pathParts.length; i++) {
+        const part = pathParts[i];
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        
+        if (!currentNode.children[part]) {
+          currentNode.children[part] = {
+            name: part,
+            path: currentPath,
+            children: {},
+            bookmarks: [],
+            bookmarkCount: 0
+          };
+        }
+        
+        currentNode = currentNode.children[part];
+      }
+      
+      // Add bookmarks to the leaf node
+      currentNode.bookmarks = [...currentNode.bookmarks, ...category.bookmarks];
+      
+      // Update bookmark counts for this node and all parents
+      let countNode = currentNode;
+      let countPath = currentPath;
+      const bookmarkCount = category.bookmarks.length;
+      
+      while (countNode) {
+        countNode.bookmarkCount += bookmarkCount;
+        
+        // Move up to parent
+        if (countPath) {
+          const parentPath = countPath.includes('/') 
+            ? countPath.substring(0, countPath.lastIndexOf('/')) 
+            : '';
+          
+          countPath = parentPath;
+          countNode = parentPath 
+            ? pathPartsToNode(parentPath.split('/'), root) 
+            : root;
+        } else {
+          break;
+        }
+      }
+      
+      // Add to root count
+      root.bookmarkCount += bookmarkCount;
+    });
+    
+    return root;
+  }, [bookmarkData]);
+  
+  // Helper function to get a node from path parts
+  const pathPartsToNode = (pathParts: string[], root: FolderNode): FolderNode | null => {
+    let current = root;
+    
+    for (const part of pathParts) {
+      if (!current.children[part]) {
+        return null;
+      }
+      current = current.children[part];
+    }
+    
+    return current;
+  };
+  
+  // Get all folder paths for dropdowns
+  const folderPaths = useMemo(() => {
+    const paths: string[] = [];
+    
+    const traverse = (node: FolderNode, path: string) => {
+      if (path) {
+        paths.push(path);
+      }
+      
+      Object.values(node.children).forEach(child => {
+        traverse(child, child.path);
+      });
+    };
+    
+    traverse(folderHierarchy, '');
+    
+    return paths.sort();
+  }, [folderHierarchy]);
+  
+  // Get current node based on path
+  const currentNode = useMemo(() => {
+    if (!currentPath) {
+      return folderHierarchy;
+    }
+    
+    const pathParts = currentPath.split('/');
+    return pathPartsToNode(pathParts, folderHierarchy) || folderHierarchy;
+  }, [currentPath, folderHierarchy]);
+  
+  // Get sub-folders of current folder
+  const subFolders = useMemo(() => {
+    return Object.values(currentNode.children)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [currentNode]);
+  
+  // Get bookmarks in the current folder
+  const currentBookmarks = useMemo(() => {
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       return bookmarkData.categories.flatMap(category => 
         category.bookmarks.filter(bookmark => 
           bookmark.title.toLowerCase().includes(searchLower) ||
@@ -646,31 +964,21 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
       );
     }
     
-    // If no folder is selected, show all bookmarks
-    if (currentFolder === null) {
-      return bookmarkData.categories.flatMap(category => category.bookmarks);
-    }
-    
-    // Show bookmarks in the selected folder
-    const selectedCategory = bookmarkData.categories.find(
-      category => category.name === currentFolder
-    );
-    
-    return selectedCategory ? selectedCategory.bookmarks : [];
-  }, [bookmarkData.categories, searchTerm, currentFolder]);
+    return currentNode.bookmarks;
+  }, [bookmarkData.categories, currentNode, searchTerm]);
   
   // Toggle folder expansion in the tree view
-  const toggleFolder = useCallback((folderName: string) => {
+  const toggleFolder = useCallback((folderPath: string) => {
     setExpandedFolders(prev => 
-      prev.includes(folderName)
-        ? prev.filter(f => f !== folderName)
-        : [...prev, folderName]
+      prev.includes(folderPath)
+        ? prev.filter(f => f !== folderPath)
+        : [...prev, folderPath]
     );
   }, []);
   
   // Handle folder selection
-  const handleFolderSelect = useCallback((folderName: string) => {
-    setCurrentFolder(folderName ? folderName : null);
+  const handleFolderSelect = useCallback((folderPath: string) => {
+    setCurrentPath(folderPath);
     setSearchTerm('');
   }, []);
   
@@ -692,25 +1000,49 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
       // Find the source category
       const sourceCategory = newData.categories.find(cat => cat.name === bookmark.folder);
       
-      // Find the target category
-      const targetCategory = newData.categories.find(cat => cat.name === targetFolder);
+      // Find or create the target category
+      let targetCategory = newData.categories.find(cat => cat.name === targetFolder);
       
-      if (sourceCategory && targetCategory) {
-        // Remove from source category
+      if (!targetCategory && targetFolder !== '') {
+        targetCategory = {
+          name: targetFolder,
+          bookmarks: []
+        };
+        newData.categories.push(targetCategory);
+      }
+      
+      // Remove from source category if it exists
+      if (sourceCategory) {
         sourceCategory.bookmarks = sourceCategory.bookmarks.filter(b => b.id !== bookmark.id);
-        
+      }
+      
+      // Handle moving to root (no folder)
+      if (targetFolder === '') {
+        const rootCategory = newData.categories.find(cat => cat.name === '');
+        if (rootCategory) {
+          // Add to existing root category
+          const newBookmark = {...bookmark, folder: ''};
+          rootCategory.bookmarks.push(newBookmark);
+        } else {
+          // Create a new root category
+          newData.categories.push({
+            name: '',
+            bookmarks: [{...bookmark, folder: ''}]
+          });
+        }
+      } else if (targetCategory) {
         // Add to target category with updated folder reference
         const newBookmark = {...bookmark, folder: targetFolder};
         targetCategory.bookmarks.push(newBookmark);
-        
-        toast({
-          title: "Bookmark moved",
-          description: `Moved to "${targetFolder}"`,
-          status: "success",
-          duration: 2000,
-          isClosable: true,
-        });
       }
+      
+      toast({
+        title: "Bookmark moved",
+        description: `Moved to "${targetFolder || 'Root'}"`,
+        status: "success",
+        duration: 2000,
+        isClosable: true,
+      });
       
       return newData;
     });
@@ -781,18 +1113,44 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
 
     // Add each category as a folder
     bookmarks.categories.forEach(category => {
-      html += `    <DT><H3 FOLDED ADD_DATE="${Math.floor(Date.now() / 1000)}">${category.name}</H3>\n    <DL><p>\n`;
+      // Handle folder hierarchy for nested folders
+      const folderParts = category.name ? category.name.split('/') : [];
+      
+      // Create folder structure with proper nesting
+      let indentLevel = 1;
+      let currentPath = '';
+      let openedFolders: string[] = [];
+      
+      for (const part of folderParts) {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        
+        // Add folder entry if it hasn't been opened yet
+        if (!openedFolders.includes(currentPath)) {
+          const indent = '    '.repeat(indentLevel);
+          html += `${indent}<DT><H3 FOLDED ADD_DATE="${Math.floor(Date.now() / 1000)}">${part}</H3>\n`;
+          html += `${indent}<DL><p>\n`;
+          openedFolders.push(currentPath);
+          indentLevel++;
+        }
+      }
       
       // Add bookmarks in this category
+      const bookmarkIndent = '    '.repeat(indentLevel);
       category.bookmarks.forEach(bookmark => {
         const dateAdded = bookmark.dateAdded 
           ? Math.floor(new Date(bookmark.dateAdded).getTime() / 1000) 
           : Math.floor(Date.now() / 1000);
         
-        html += `        <DT><A HREF="${bookmark.url}" ADD_DATE="${dateAdded}">${bookmark.title}</A>\n`;
+        html += `${bookmarkIndent}<DT><A HREF="${bookmark.url}" ADD_DATE="${dateAdded}">${bookmark.title}</A>\n`;
       });
       
-      html += `    </DL><p>\n`;
+      // Close all opened folders
+      while (openedFolders.length > 0) {
+        indentLevel--;
+        const indent = '    '.repeat(indentLevel);
+        html += `${indent}</DL><p>\n`;
+        openedFolders.pop();
+      }
     });
     
     html += `</DL><p>`;
@@ -849,9 +1207,9 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
         {/* Folder Tree Sidebar */}
         <Box width="250px" height="100%">
           <FolderTree 
-            categories={bookmarkData.categories}
+            folderHierarchy={folderHierarchy}
             onSelectFolder={handleFolderSelect}
-            selectedFolder={currentFolder}
+            selectedPath={currentPath}
             onDrop={handleDropOnFolder}
             expandedFolders={expandedFolders}
             toggleFolder={toggleFolder}
@@ -868,81 +1226,170 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
           overflowY="auto"
           height="100%"
         >
-          {/* Title and count */}
-          <Flex justify="space-between" align="center" mb={4}>
-            <Heading size="md">
-              {searchTerm 
-                ? `Search Results: "${searchTerm}"`
-                : currentFolder === null
-                ? "All Bookmarks"
-                : currentFolder
-              }
-            </Heading>
-            <Badge colorScheme="blue" fontSize="sm" p={1}>
-              {filteredBookmarks.length} bookmark{filteredBookmarks.length !== 1 ? 's' : ''}
-            </Badge>
-          </Flex>
+          {/* Breadcrumb and Title */}
+          <VStack align="stretch" mb={4} spacing={2}>
+            <FolderBreadcrumb 
+              currentPath={currentPath} 
+              onNavigate={handleFolderSelect} 
+            />
+            
+            <Flex justify="space-between" align="center">
+              <Heading size="md">
+                {searchTerm 
+                  ? `Search Results: "${searchTerm}"`
+                  : !currentPath 
+                  ? "All Bookmarks"
+                  : currentPath.split('/').pop()
+                }
+              </Heading>
+              {!searchTerm && (
+                <Badge colorScheme="blue" fontSize="sm" p={1}>
+                  {subFolders.length} folder{subFolders.length !== 1 ? 's' : ''}, {currentBookmarks.length} bookmark{currentBookmarks.length !== 1 ? 's' : ''}
+                </Badge>
+              )}
+              {searchTerm && (
+                <Badge colorScheme="blue" fontSize="sm" p={1}>
+                  {currentBookmarks.length} result{currentBookmarks.length !== 1 ? 's' : ''}
+                </Badge>
+              )}
+            </Flex>
+          </VStack>
           
           {viewMode === 'grid' ? (
             // Grid View
-            <Grid 
-              templateColumns={{
-                base: 'repeat(2, 1fr)',
-                sm: 'repeat(3, 1fr)',
-                md: 'repeat(4, 1fr)',
-                lg: 'repeat(5, 1fr)'
-              }}
-              gap={4}
-            >
-              {filteredBookmarks.map((bookmark, index) => (
-                <GridItem key={`${bookmark.id}-${index}`}>
-                  <Box onClick={() => handleBookmarkClick(bookmark)} cursor="pointer">
-                    <BookmarkCard 
-                      bookmark={bookmark} 
-                      onDragStart={handleDragStart}
-                    />
-                  </Box>
-                </GridItem>
-              ))}
-              
-              {/* Empty state */}
-              {filteredBookmarks.length === 0 && (
-                <GridItem colSpan={{ base: 2, sm: 3, md: 4, lg: 5 }}>
-                  <Box textAlign="center" p={8}>
-                    <Icon as={FiSearch} boxSize="40px" color="gray.400" mb={4} />
-                    <Heading size="md" mb={2}>No bookmarks found</Heading>
-                    <Text color="gray.500">
-                      {searchTerm 
-                        ? `No bookmarks match "${searchTerm}"`
-                        : "This folder is empty"
-                      }
-                    </Text>
-                  </Box>
-                </GridItem>
+            <VStack align="stretch" spacing={6}>
+              {/* Sub-folders section */}
+              {!searchTerm && subFolders.length > 0 && (
+                <>
+                  <Heading size="sm" mb={2}>Folders</Heading>
+                  <Grid 
+                    templateColumns={{
+                      base: 'repeat(2, 1fr)',
+                      sm: 'repeat(3, 1fr)',
+                      md: 'repeat(4, 1fr)',
+                      lg: 'repeat(5, 1fr)'
+                    }}
+                    gap={4}
+                  >
+                    {subFolders.map((folder) => (
+                      <GridItem key={folder.path}>
+                        <FolderCard 
+                          folder={folder.path}
+                          bookmarkCount={folder.bookmarkCount}
+                          onClick={() => handleFolderSelect(folder.path)}
+                        />
+                      </GridItem>
+                    ))}
+                  </Grid>
+                </>
               )}
-            </Grid>
-          ) : (
-            // List View
-            <VStack spacing={2} align="stretch">
-              {filteredBookmarks.map((bookmark, index) => (
-                <BookmarkListItem 
-                  key={`${bookmark.id}-${index}`}
-                  bookmark={bookmark}
-                  onClick={() => handleBookmarkClick(bookmark)}
-                  onDragStart={handleDragStart}
-                />
-              ))}
+              
+              {/* Bookmarks section */}
+              {currentBookmarks.length > 0 && (
+                <>
+                  <Heading size="sm" mb={2}>
+                    {searchTerm ? 'Search Results' : 'Bookmarks'}
+                  </Heading>
+                  <Grid 
+                    templateColumns={{
+                      base: 'repeat(2, 1fr)',
+                      sm: 'repeat(3, 1fr)',
+                      md: 'repeat(4, 1fr)',
+                      lg: 'repeat(5, 1fr)'
+                    }}
+                    gap={4}
+                  >
+                    {currentBookmarks.map((bookmark, index) => (
+                      <GridItem key={`${bookmark.id}-${index}`}>
+                        <Box onClick={() => handleBookmarkClick(bookmark)} cursor="pointer">
+                          <BookmarkCard 
+                            bookmark={bookmark} 
+                            onDragStart={handleDragStart}
+                          />
+                        </Box>
+                      </GridItem>
+                    ))}
+                  </Grid>
+                </>
+              )}
               
               {/* Empty state */}
-              {filteredBookmarks.length === 0 && (
+              {!searchTerm && subFolders.length === 0 && currentBookmarks.length === 0 && (
+                <Box textAlign="center" p={8}>
+                  <Icon as={FiFolder} boxSize="40px" color="gray.400" mb={4} />
+                  <Heading size="md" mb={2}>Empty Folder</Heading>
+                  <Text color="gray.500">
+                    This folder is empty
+                  </Text>
+                </Box>
+              )}
+              
+              {searchTerm && currentBookmarks.length === 0 && (
                 <Box textAlign="center" p={8}>
                   <Icon as={FiSearch} boxSize="40px" color="gray.400" mb={4} />
                   <Heading size="md" mb={2}>No bookmarks found</Heading>
                   <Text color="gray.500">
-                    {searchTerm 
-                      ? `No bookmarks match "${searchTerm}"`
-                      : "This folder is empty"
-                    }
+                    No bookmarks match "{searchTerm}"
+                  </Text>
+                </Box>
+              )}
+            </VStack>
+          ) : (
+            // List View
+            <VStack spacing={4} align="stretch">
+              {/* Sub-folders section */}
+              {!searchTerm && subFolders.length > 0 && (
+                <Box>
+                  <Heading size="sm" mb={2}>Folders</Heading>
+                  <VStack spacing={2} align="stretch">
+                    {subFolders.map((folder) => (
+                      <FolderListItem
+                        key={folder.path}
+                        folder={folder.path}
+                        bookmarkCount={folder.bookmarkCount}
+                        onClick={() => handleFolderSelect(folder.path)}
+                      />
+                    ))}
+                  </VStack>
+                </Box>
+              )}
+              
+              {/* Bookmarks section */}
+              {currentBookmarks.length > 0 && (
+                <Box>
+                  <Heading size="sm" mb={2}>
+                    {searchTerm ? 'Search Results' : 'Bookmarks'}
+                  </Heading>
+                  <VStack spacing={2} align="stretch">
+                    {currentBookmarks.map((bookmark, index) => (
+                      <BookmarkListItem 
+                        key={`${bookmark.id}-${index}`}
+                        bookmark={bookmark}
+                        onClick={() => handleBookmarkClick(bookmark)}
+                        onDragStart={handleDragStart}
+                      />
+                    ))}
+                  </VStack>
+                </Box>
+              )}
+              
+              {/* Empty state */}
+              {!searchTerm && subFolders.length === 0 && currentBookmarks.length === 0 && (
+                <Box textAlign="center" p={8}>
+                  <Icon as={FiFolder} boxSize="40px" color="gray.400" mb={4} />
+                  <Heading size="md" mb={2}>Empty Folder</Heading>
+                  <Text color="gray.500">
+                    This folder is empty
+                  </Text>
+                </Box>
+              )}
+              
+              {searchTerm && currentBookmarks.length === 0 && (
+                <Box textAlign="center" p={8}>
+                  <Icon as={FiSearch} boxSize="40px" color="gray.400" mb={4} />
+                  <Heading size="md" mb={2}>No bookmarks found</Heading>
+                  <Text color="gray.500">
+                    No bookmarks match "{searchTerm}"
                   </Text>
                 </Box>
               )}
@@ -963,7 +1410,7 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
         isOpen={isOpen} 
         onClose={onClose} 
         bookmark={selectedBookmark} 
-        categories={bookmarkData.categories}
+        folderPaths={folderPaths}
         onMoveBookmark={handleMoveBookmark}
       />
     </VStack>

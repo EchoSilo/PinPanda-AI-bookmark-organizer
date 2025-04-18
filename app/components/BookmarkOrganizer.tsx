@@ -281,7 +281,8 @@ const FolderTreeItem = ({
   onSelectFolder,
   expandedFolders,
   toggleFolder,
-  onDrop
+  onDrop,
+  searchResultFolders = null
 }: { 
   node: FolderNode; 
   level?: number;
@@ -290,14 +291,26 @@ const FolderTreeItem = ({
   expandedFolders: string[];
   toggleFolder: (path: string) => void;
   onDrop: (bookmark: Bookmark, targetFolder: string) => void;
+  searchResultFolders?: string[] | null;
 }) => {
   const hasChildren = Object.keys(node.children).length > 0;
   const isExpanded = expandedFolders.includes(node.path);
   const isSelected = selectedPath === node.path;
+  const containsSearchResults = searchResultFolders ? 
+    searchResultFolders.includes(node.path) : false;
   
   const bgColor = useColorModeValue('white', 'gray.700');
   const hoverBgColor = useColorModeValue('gray.100', 'gray.600');
   const selectedBgColor = useColorModeValue('blue.50', 'blue.900');
+  const searchResultColor = useColorModeValue('green.50', 'green.900');
+  
+  // Determine the background color based on selected status and search results
+  let itemBgColor = 'transparent';
+  if (isSelected) {
+    itemBgColor = selectedBgColor;
+  } else if (containsSearchResults) {
+    itemBgColor = searchResultColor;
+  }
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -312,13 +325,32 @@ const FolderTreeItem = ({
     }
   };
   
+  // Check if any child folders contain search results
+  const childrenContainSearchResults = useMemo(() => {
+    if (!searchResultFolders) return false;
+    
+    const checkChildPaths = (childNode: FolderNode): boolean => {
+      // Check if this child's path is in the search results
+      if (searchResultFolders.includes(childNode.path)) {
+        return true;
+      }
+      
+      // Recursively check all sub-children
+      return Object.values(childNode.children).some(subChild => 
+        checkChildPaths(subChild)
+      );
+    };
+    
+    return Object.values(node.children).some(child => checkChildPaths(child));
+  }, [node.children, searchResultFolders]);
+  
   return (
     <Box>
       <HStack 
         p={2}
         pl={`${(level * 12) + 8}px`}
         borderRadius="md"
-        bg={isSelected ? selectedBgColor : 'transparent'}
+        bg={itemBgColor}
         _hover={{ bg: isSelected ? selectedBgColor : hoverBgColor }}
         cursor="pointer"
         onClick={() => onSelectFolder(node.path)}
@@ -328,7 +360,7 @@ const FolderTreeItem = ({
         {hasChildren && (
           <Icon 
             as={isExpanded ? FiChevronDown : FiChevronRight} 
-            color="gray.500"
+            color={childrenContainSearchResults ? "green.500" : "gray.500"}
             boxSize="14px"
             onClick={(e) => {
               e.stopPropagation();
@@ -339,11 +371,23 @@ const FolderTreeItem = ({
         {!hasChildren && (
           <Box width="14px" />
         )}
-        <Icon as={FiFolder} color="blue.500" />
-        <Text fontWeight={isSelected ? "bold" : "normal"} isTruncated>
+        <Icon 
+          as={FiFolder} 
+          color={containsSearchResults ? "green.500" : "blue.500"} 
+        />
+        <Text 
+          fontWeight={isSelected || containsSearchResults ? "bold" : "normal"} 
+          isTruncated
+          color={containsSearchResults ? "green.700" : undefined}
+        >
           {node.name}
         </Text>
-        <Badge ml="auto">{node.bookmarkCount}</Badge>
+        <Badge 
+          ml="auto"
+          colorScheme={containsSearchResults ? "green" : undefined}
+        >
+          {node.bookmarkCount}
+        </Badge>
       </HStack>
       
       {isExpanded && hasChildren && (
@@ -360,6 +404,7 @@ const FolderTreeItem = ({
                 expandedFolders={expandedFolders}
                 toggleFolder={toggleFolder}
                 onDrop={onDrop}
+                searchResultFolders={searchResultFolders}
               />
             ))}
         </Box>
@@ -376,6 +421,7 @@ const FolderTree = ({
   onDrop,
   expandedFolders,
   toggleFolder,
+  searchResultFolders = null
 }: { 
   folderHierarchy: FolderNode;
   onSelectFolder: (path: string) => void;
@@ -383,10 +429,12 @@ const FolderTree = ({
   onDrop: (bookmark: Bookmark, targetFolder: string) => void;
   expandedFolders: string[];
   toggleFolder: (path: string) => void;
+  searchResultFolders?: string[] | null;
 }) => {
   const bgColor = useColorModeValue('white', 'gray.700');
   const hoverBgColor = useColorModeValue('gray.100', 'gray.600');
   const selectedBgColor = useColorModeValue('blue.50', 'blue.900');
+  const searchResultColor = useColorModeValue('green.50', 'green.900');
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -400,6 +448,35 @@ const FolderTree = ({
       onDrop(bookmark, '');
     }
   };
+  
+  // Auto-expand folders containing search results
+  React.useEffect(() => {
+    if (searchResultFolders && searchResultFolders.length > 0) {
+      // Expand all parent folders of search result folders
+      const foldersToExpand = new Set<string>();
+      
+      searchResultFolders.forEach(folder => {
+        // Add all parent folders to the set
+        const parts = getNormalizedFolderPath(folder);
+        let currentPath = '';
+        for (let i = 0; i < parts.length - 1; i++) {
+          currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+          foldersToExpand.add(currentPath);
+        }
+      });
+      
+      // Expand all these folders
+      setExpandedFolders(prev => {
+        const newExpanded = [...prev];
+        Array.from(foldersToExpand).forEach(folder => {
+          if (!newExpanded.includes(folder)) {
+            newExpanded.push(folder);
+          }
+        });
+        return newExpanded;
+      });
+    }
+  }, [searchResultFolders, setExpandedFolders]);
   
   return (
     <VStack 
@@ -446,6 +523,7 @@ const FolderTree = ({
               expandedFolders={expandedFolders}
               toggleFolder={toggleFolder}
               onDrop={onDrop}
+              searchResultFolders={searchResultFolders}
             />
           ))}
       </Box>
@@ -968,26 +1046,58 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
     return node;
   }, [currentPath, folderHierarchy]);
   
-  // Get sub-folders of current folder
+  // Get filtered bookmarks based on search term
+  const searchResults = useMemo(() => {
+    if (!searchTerm) return null;
+    
+    // For search, we want to show all matching bookmarks flat (not folder-based)
+    return bookmarkData.categories.flatMap(category => 
+      category.bookmarks.filter(bookmark => 
+        bookmark.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bookmark.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (bookmark.folder && bookmark.folder.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    );
+  }, [bookmarkData.categories, searchTerm]);
+  
+  // Get sub-folders of current folder (considering search results)
   const subFolders = useMemo(() => {
+    // When searching, don't show subfolders in the main content area
+    if (searchTerm) return [];
+    
     return Object.values(currentNode.children)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [currentNode]);
+  }, [currentNode, searchTerm]);
   
-  // Get bookmarks in the current folder
+  // Get relevant folders for search results
+  const searchResultFolders = useMemo(() => {
+    if (!searchTerm || !searchResults) return null;
+    
+    // Create a set of all folders that contain search results
+    const folderSet = new Set<string>();
+    searchResults.forEach(bookmark => {
+      if (bookmark.folder) {
+        // Add the folder and all parent folders
+        const parts = getNormalizedFolderPath(bookmark.folder);
+        let currentPath = '';
+        for (const part of parts) {
+          currentPath = currentPath ? `${currentPath}/${part}` : part;
+          folderSet.add(currentPath);
+        }
+      }
+    });
+    
+    return Array.from(folderSet);
+  }, [searchTerm, searchResults]);
+  
+  // Get bookmarks to display (either from current folder or search)
   const currentBookmarks = useMemo(() => {
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      return bookmarkData.categories.flatMap(category => 
-        category.bookmarks.filter(bookmark => 
-          bookmark.title.toLowerCase().includes(searchLower) ||
-          bookmark.url.toLowerCase().includes(searchLower)
-        )
-      );
+    if (searchTerm && searchResults) {
+      return searchResults;
     }
     
     return currentNode.bookmarks;
-  }, [bookmarkData.categories, currentNode, searchTerm]);
+  }, [currentNode, searchTerm, searchResults]);
   
   // Toggle folder expansion in the tree view
   const toggleFolder = useCallback((folderPath: string) => {
@@ -1252,6 +1362,7 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
             onDrop={handleDropOnFolder}
             expandedFolders={expandedFolders}
             toggleFolder={toggleFolder}
+            searchResultFolders={searchTerm ? searchResultFolders : null}
           />
         </Box>
         

@@ -1,3 +1,13 @@
+export interface BookmarkMetadata {
+  title: string;
+  description: string;
+  keywords: string[];
+  categories: string[];
+  summary: string;
+  isActive: boolean;
+  lastChecked: string;
+}
+
 export interface Bookmark {
   id: string;
   title: string;
@@ -7,6 +17,7 @@ export interface Bookmark {
   isValid?: boolean;
   validationError?: string;
   favicon?: string;
+  metadata?: BookmarkMetadata;
 }
 
 export interface BookmarkCategory {

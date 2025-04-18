@@ -1187,28 +1187,50 @@ export const searchBookmarks = async (
 ): Promise<OrganizedBookmarks> => {
   try {
     Logger.info("AIService", `Starting AI-powered search for query: "${query}"`);
+    const startTime = performance.now();
 
-    // First perform a basic search to filter bookmarks
-    const filteredBookmarks = bookmarks.filter(bookmark =>
-      bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
-      bookmark.url.toLowerCase().includes(query.toLowerCase())
+    // Check if this is a semantic search query (natural language) vs. keyword search
+    const isSemanticSearch = query.length > 3 && 
+      !query.includes('http') && 
+      query.split(' ').length > 1;
+    
+    // First perform a keyword match as a baseline
+    const keywordMatch = (bookmark: Bookmark, searchTerms: string[]): boolean => {
+      const titleLower = bookmark.title.toLowerCase();
+      const urlLower = bookmark.url.toLowerCase();
+      const folderLower = (bookmark.folder || '').toLowerCase();
+      
+      // Check if any search term is in the title, URL or folder
+      return searchTerms.some(term => 
+        titleLower.includes(term) || 
+        urlLower.includes(term) || 
+        folderLower.includes(term)
+      );
+    };
+    
+    // Break query into terms for more flexible matching
+    const searchTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 1);
+    
+    // Find direct keyword matches 
+    const directMatches = bookmarks.filter(bookmark => 
+      keywordMatch(bookmark, searchTerms)
     );
 
-    Logger.info("AIService", `Found ${filteredBookmarks.length} bookmarks matching the basic search`);
+    Logger.info("AIService", `Found ${directMatches.length} bookmarks matching keywords in ${performance.now() - startTime}ms`);
 
-    // For small result sets, just return basic categorization
-    if (filteredBookmarks.length <= 5) {
+    // If not doing semantic search or we have small result set, just return basic results
+    if (!isSemanticSearch || directMatches.length <= 5) {
       return {
         categories: [
           {
             name: `Search Results for "${query}"`,
-            bookmarks: filteredBookmarks
+            bookmarks: directMatches
           }
         ],
         invalidBookmarks: [],
         duplicateBookmarks: [],
         duplicateStats: { 
-          uniqueUrls: filteredBookmarks.length,
+          uniqueUrls: directMatches.length,
           urlsWithDuplicates: 0,
           totalDuplicateReferences: 0,
           mostDuplicatedUrls: []
@@ -1216,22 +1238,139 @@ export const searchBookmarks = async (
       };
     }
 
-    // For larger result sets, use AI to categorize the results
-    Logger.info("AIService", `Using AI to organize ${filteredBookmarks.length} search results`);
+    // For semantic search, use AI to understand query and organize results
+    Logger.info("AIService", `Performing semantic search for: "${query}"`);
+    
+    // Prepare a prompt for the AI to better understand the user's intent
+    const searchSystemPrompt = `
+You are a search assistant that helps users find relevant bookmarks based on their query.
+Your goal is to analyze the query deeply and categorize search results in a way that makes them easy to find.
+Consider both explicit keywords and the implicit intent behind the search.
+`;
 
-    // Use the existing organizeBookmarks function to categorize the results
-    const organizedResults = await organizeBookmarks(filteredBookmarks);
+    const searchPrompt = `
+Search query: "${query}"
 
-    // Rename the first category to indicate these are search results
-    if (organizedResults.categories.length > 0) {
-      organizedResults.categories[0].name = `Top Results for "${query}"`;
+I have ${directMatches.length} bookmarks that roughly match this query based on keywords.
+Please analyze these bookmarks and organize them into relevant categories based on the user's search intent.
+Focus on what the user is really looking for rather than just keyword matches.
+
+Here are the bookmarks:
+${JSON.stringify(directMatches.map((b, i) => ({
+  id: i,
+  title: b.title,
+  url: b.url,
+  folder: b.folder || 'Uncategorized'
+})), null, 2)}
+
+Return a JSON object with the following structure:
+{
+  "categories": {
+    "category_name_1": [0, 1, 2], // IDs of bookmarks in this category
+    "category_name_2": [3, 4, 5], // IDs of bookmarks in this category
+    // More categories as needed
+  },
+  "relevance_scores": {
+    "0": 0.95, // Relevance score from 0-1 for bookmark with ID 0
+    "1": 0.82, // Relevance score for bookmark with ID 1
+    // Scores for all bookmark IDs
+  }
+}
+
+IMPORTANT: Make category names very concise and descriptive. Use "Most Relevant" for the most closely matching results.
+`;
+
+    try {
+      const aiResponse = await callOpenAI(searchSystemPrompt, searchPrompt);
+      const responseData = extractJsonFromResponse(aiResponse.content);
+      
+      if (responseData && responseData.categories) {
+        // Transform AI response into our OrganizedBookmarks format
+        const categories: {name: string; bookmarks: Bookmark[]}[] = [];
+        
+        // Get relevance scores if available
+        const relevanceScores = responseData.relevance_scores || {};
+        
+        // Add most relevant category first if it exists
+        if (responseData.categories["Most Relevant"]) {
+          const mostRelevantIds = responseData.categories["Most Relevant"];
+          categories.push({
+            name: `Top Results for "${query}"`,
+            bookmarks: mostRelevantIds.map((id: number) => directMatches[id]).filter(Boolean)
+          });
+          
+          // Remove this category so we don't process it again
+          delete responseData.categories["Most Relevant"];
+        }
+        
+        // Add remaining categories
+        Object.entries(responseData.categories).forEach(([categoryName, bookmarkIds]) => {
+          if (Array.isArray(bookmarkIds) && bookmarkIds.length > 0) {
+            categories.push({
+              name: categoryName,
+              bookmarks: (bookmarkIds as number[])
+                .map(id => directMatches[id])
+                .filter(Boolean)
+                // Sort by relevance score if available
+                .sort((a, b) => {
+                  const idA = directMatches.findIndex(bm => bm.id === a.id);
+                  const idB = directMatches.findIndex(bm => bm.id === b.id);
+                  const scoreA = relevanceScores[idA] || 0;
+                  const scoreB = relevanceScores[idB] || 0;
+                  return scoreB - scoreA;
+                })
+            });
+          }
+        });
+        
+        // If no categories were created (something went wrong), use direct matches
+        if (categories.length === 0) {
+          categories.push({
+            name: `Search Results for "${query}"`,
+            bookmarks: directMatches
+          });
+        }
+        
+        const endTime = performance.now();
+        Logger.info("AIService", `Completed semantic search in ${endTime - startTime}ms with ${categories.length} categories`);
+        
+        return {
+          categories,
+          invalidBookmarks: [],
+          duplicateBookmarks: [],
+          duplicateStats: {
+            uniqueUrls: directMatches.length,
+            urlsWithDuplicates: 0,
+            totalDuplicateReferences: 0,
+            mostDuplicatedUrls: []
+          }
+        };
+      }
+    } catch (error) {
+      Logger.error("AIService", "Error during semantic search processing", error);
     }
-
-    return organizedResults;
+    
+    // Fallback if AI processing fails
+    return {
+      categories: [
+        {
+          name: `Search Results for "${query}"`,
+          bookmarks: directMatches
+        }
+      ],
+      invalidBookmarks: [],
+      duplicateBookmarks: [],
+      duplicateStats: {
+        uniqueUrls: directMatches.length,
+        urlsWithDuplicates: 0,
+        totalDuplicateReferences: 0,
+        mostDuplicatedUrls: []
+      }
+    };
   } catch (error) {
-    Logger.error("AIService", "Error during AI-powered search", error);
+    Logger.error("AIService", "Error during search", error);
 
-    // Fallback to basic search if AI fails
+    // Fallback to basic search if anything fails
     const basicResults = bookmarks.filter(bookmark =>
       bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
       bookmark.url.toLowerCase().includes(query.toLowerCase())

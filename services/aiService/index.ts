@@ -442,14 +442,15 @@ ${JSON.stringify(dataToProcess, null, 2)}
 
 IMPORTANT INSTRUCTIONS:
 1. Analyze these bookmarks deeply to understand their content, purpose, and relationships
-2. Create BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
-3. Group related topics together (e.g., all cryptocurrency under Finance, all development tools under Technology)
-4. Create a hierarchical organization with main categories and meaningful subcategories
-5. Use descriptive, concise category names that clearly indicate the content
-6. Ensure every bookmark is assigned to the most specific appropriate category
+2. Create SPECIFIC, CONTEXTUAL categories based on the actual content patterns in the bookmarks
+3. Group related topics into meaningful clusters based on content relationships and domain context
+4. Create a hierarchical organization with well-defined categories and descriptive subcategories  
+5. Use precise, specialized category names that capture the exact nature of the content
+6. Ensure every bookmark is assigned to the most appropriate specific category
 7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
-9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names like "Finance", "Development", "Entertainment", etc.
+9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
+10. AVOID overly broad categories like "Finance", "Technology", or "Media" - use more precise themes
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;
@@ -462,7 +463,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
     Logger.debug("AIService", `Prompt token estimate: ${promptTokens}`, {
       promptTokens,
     });
-    Logger.debug("AIService", `System prompt token estimate: ${systemTokens}`, {
+    Logger.debug("AIService", `System prompt estimate: ${systemTokens}`, {
       systemTokens,
     });
     Logger.debug("AIService", `Total token estimate: ${totalTokens}`, {
@@ -924,14 +925,15 @@ ${JSON.stringify(chunkData, null, 2)}
 
 IMPORTANT INSTRUCTIONS:
 1. Analyze these bookmarks deeply to understand their content, purpose, and relationships
-2. Create BROAD MAIN CATEGORIES for major themes like Finance, Technology, Media, etc.
-3. Group related topics together (e.g., all cryptocurrency under Finance, all development tools under Technology)
-4. Create a hierarchical organization with main categories and meaningful subcategories
-5. Use descriptive, concise category names that clearly indicate the content
-6. Ensure every bookmark is assigned to the most specific appropriate category
+2. Create SPECIFIC, CONTEXTUAL categories based on the actual content patterns in the bookmarks
+3. Group related topics into meaningful clusters based on content relationships and domain context
+4. Create a hierarchical organization with well-defined categories and descriptive subcategories  
+5. Use precise, specialized category names that capture the exact nature of the content
+6. Ensure every bookmark is assigned to the most appropriate specific category
 7. Create a clean, intuitive hierarchy - only go 3 levels deep when clearly beneficial
 8. AVOID creating multiple similar categories at the same level - consolidate related topics
-9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names like "Finance", "Development", "Entertainment", etc.
+9. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
+10. AVOID overly broad categories like "Finance", "Technology", or "Media" - use more precise themes
 
 Return ONLY a valid JSON object with main categories and subcategories as shown in the system prompt.
 `;

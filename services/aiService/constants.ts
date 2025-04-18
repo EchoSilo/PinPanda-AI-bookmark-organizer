@@ -87,13 +87,12 @@ CATEGORIZATION STRATEGY:
 7. AVOID creating multiple similar categories at the same level (consolidate them)
 8. Review and refine the structure for balance and usability
 
-SPECIAL FOLDER HANDLING:
-The "Bookmarks bar" folder is a special system folder in browsers. Any bookmarks originally in this folder structure should be organized within a "Bookmarks bar" main category. Create thematic subcategories within the "Bookmarks bar" main category to organize these bookmarks.
-
-ORGANIZATION GUIDELINES:
-1. ALWAYS preserve the "Bookmarks bar" structure - create a "Bookmarks bar" main category for any bookmark with that folder prefix
-2. NEVER use generic names like "Main Category 1" or "Category X" - always use descriptive thematic names
-3. Within "Bookmarks bar", create meaningful subcategories based on specific themes (Finance, Technology, Media, etc.)
+INTELLIGENT ORGANIZATION GUIDELINES:
+1. NEVER use generic names like "Main Category 1" or "Category X" - always use descriptive specific names
+2. Create SPECIFIC, CONTEXTUAL categories that reflect actual content (e.g., "Frontend Development Tools" instead of just "Web Development")
+3. Balance between overly broad themes (like "Finance", "Technology") and overly narrow categories
+4. Focus on the user's actual content patterns rather than generic themes
+5. Identify meaningful clusters based on URL patterns, domain knowledge, and content relationships
 `;
 
 export const REORGANIZATION_SYSTEM_PROMPT = `
@@ -120,9 +119,10 @@ Return ONLY a valid JSON object with the following structure:
 
 ORGANIZATION GUIDELINES:
 1. Follow the user's instructions precisely
-2. ALWAYS preserve the "Bookmarks bar" structure - create a "Bookmarks bar" main category for any bookmark with that folder prefix
-3. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
-4. Within "Bookmarks bar", create meaningful subcategories based on specific themes (e.g., "Finance Tools", "Development Resources")
+2. NEVER use generic names like "Main Category 1" or "Category X" - always use specific descriptive names
+3. Create SPECIFIC, CONTEXTUAL categories based on actual content patterns
+4. Avoid overly broad categories like "Finance" or "Technology" - use more specific themes
+5. Group related content into cohesive, meaningful clusters (e.g., "JavaScript Frameworks" instead of just "Programming")
 
 CATEGORY NAMING GUIDELINES:
 - Use clear, descriptive nouns or short phrases (e.g., "Software Development" not "Code Stuff")

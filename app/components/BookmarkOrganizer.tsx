@@ -421,7 +421,8 @@ const FolderTree = ({
   onDrop,
   expandedFolders,
   toggleFolder,
-  searchResultFolders = null
+  searchResultFolders = null,
+  setExpandedFolders
 }: { 
   folderHierarchy: FolderNode;
   onSelectFolder: (path: string) => void;
@@ -430,6 +431,7 @@ const FolderTree = ({
   expandedFolders: string[];
   toggleFolder: (path: string) => void;
   searchResultFolders?: string[] | null;
+  setExpandedFolders: React.Dispatch<React.SetStateAction<string[]>>;
 }) => {
   const bgColor = useColorModeValue('white', 'gray.700');
   const hoverBgColor = useColorModeValue('gray.100', 'gray.600');
@@ -450,8 +452,10 @@ const FolderTree = ({
   };
   
   // Auto-expand folders containing search results
+  const { setExpandedFolders } = props; // Access from props
+  
   React.useEffect(() => {
-    if (searchResultFolders && searchResultFolders.length > 0) {
+    if (searchResultFolders && searchResultFolders.length > 0 && setExpandedFolders) {
       // Expand all parent folders of search result folders
       const foldersToExpand = new Set<string>();
       
@@ -1363,6 +1367,7 @@ export default function BookmarkOrganizer({ organizedBookmarks, onReset }: Bookm
             expandedFolders={expandedFolders}
             toggleFolder={toggleFolder}
             searchResultFolders={searchTerm ? searchResultFolders : null}
+            setExpandedFolders={setExpandedFolders}
           />
         </Box>
         

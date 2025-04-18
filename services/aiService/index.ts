@@ -464,7 +464,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
     Logger.debug("AIService", `Prompt token estimate: ${promptTokens}`, {
       promptTokens,
     });
-    Logger.debug("AIService", `System prompt estimate: ${systemTokens}`, {
+    Logger.debug("AIService", `System prompt token estimate: ${systemTokens}`, {
       systemTokens,
     });
     Logger.debug("AIService", `Total token estimate: ${totalTokens}`, {
@@ -1020,7 +1020,7 @@ Return ONLY a valid JSON object with main categories and subcategories as shown 
       });
 
       Logger.info(
-        "AIService",
+        ""AIService",
         `Successfully processed chunk ${chunkIndex + 1} of ${totalChunks} with ${Object.keys(remappedCategorization).length} categories`,
       );
       return remappedCategorization;

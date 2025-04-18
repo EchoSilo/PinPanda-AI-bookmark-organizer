@@ -8,33 +8,6 @@ const Logger = {
   warning
 };
 
-/**
- * Splits bookmarks into manageable chunks for processing
- * @param bookmarks The array of bookmarks to chunk
- * @param chunkSize Optional chunk size (default 500)
- * @returns Array of bookmark chunks
- */
-export const chunkBookmarks = (
-  bookmarks: Bookmark[],
-  chunkSize: number = 500
-): Bookmark[][] => {
-  const chunks: Bookmark[][] = [];
-  
-  // If less than chunk size, return as single chunk
-  if (bookmarks.length <= chunkSize) {
-    return [bookmarks];
-  }
-  
-  // Split into chunks
-  for (let i = 0; i < bookmarks.length; i += chunkSize) {
-    chunks.push(bookmarks.slice(i, i + chunkSize));
-  }
-  
-  Logger.info('AIService', `Split ${bookmarks.length} bookmarks into ${chunks.length} chunks`);
-  
-  return chunks;
-};
-
 // Helper function to find duplicate bookmarks
 export const findDuplicateBookmarks = (
   bookmarks: Bookmark[],

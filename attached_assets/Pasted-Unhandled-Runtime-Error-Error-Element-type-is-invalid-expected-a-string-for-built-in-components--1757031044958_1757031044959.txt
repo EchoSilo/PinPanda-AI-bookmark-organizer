@@ -1,0 +1,40 @@
+Unhandled Runtime Error
+Error: Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: undefined. You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.
+
+Check the render method of `BookmarkChatbot`.
+
+Call Stack
+createFiberFromTypeAndProps
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (26719:17)
+createFiberFromElement
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (26748:15)
+reconcileSingleElement
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (9500:23)
+reconcileChildFibersImpl
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (9559:35)
+reconcileChildFibers
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (9626:27)
+reconcileChildren
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (14658:28)
+mountIndeterminateComponent
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (15839:5)
+beginWork$1
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (17354:16)
+beginWork
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (25711:14)
+performUnitOfWork
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (24557:12)
+workLoopSync
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (24273:5)
+renderRootSync
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (24228:7)
+recoverFromConcurrentError
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (23453:20)
+performConcurrentWorkOnRoot
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js (23398:26)
+workLoop
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js (261:34)
+flushWork
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js (230:14)
+MessagePort.performWorkUntilDeadline
+webpack-internal:/(app-pages-browser)/node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js (534:21)

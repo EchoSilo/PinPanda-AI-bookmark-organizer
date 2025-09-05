@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -23,7 +22,7 @@ import {
   useToast,
   Tooltip,
 } from '@chakra-ui/react';
-import { FiSend, FiUser, FiBot, FiExternalLink, FiTrash2 } from 'react-icons/fi';
+import { FiSend, FiUser, FiMessageCircle, FiExternalLink, FiTrash2 } from 'react-icons/fi';
 import { Bookmark, OrganizedBookmarks } from '@/types';
 import * as aiService from '@/services/aiService';
 import * as Logger from '@/services/logService';
@@ -83,7 +82,7 @@ export default function BookmarkChatbot({ organizedBookmarks }: BookmarkChatbotP
 
     // Add user message
     setMessages(prev => [...prev, userMessage]);
-    
+
     // Add loading bot message
     const loadingMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -92,17 +91,17 @@ export default function BookmarkChatbot({ organizedBookmarks }: BookmarkChatbotP
       timestamp: new Date(),
       isLoading: true,
     };
-    
+
     setMessages(prev => [...prev, loadingMessage]);
     setInputValue('');
     setIsLoading(true);
 
     try {
       Logger.info('BookmarkChatbot', `Processing query: ${userMessage.content}`);
-      
+
       // Call AI service to search bookmarks with natural language
       const searchResults = await searchBookmarksWithAI(userMessage.content, allBookmarks);
-      
+
       // Remove loading message and add response
       setMessages(prev => {
         const withoutLoading = prev.filter(msg => msg.id !== loadingMessage.id);
@@ -111,7 +110,7 @@ export default function BookmarkChatbot({ organizedBookmarks }: BookmarkChatbotP
 
     } catch (error) {
       Logger.error('BookmarkChatbot', 'Error processing query', error);
-      
+
       // Remove loading message and add error response
       setMessages(prev => {
         const withoutLoading = prev.filter(msg => msg.id !== loadingMessage.id);
@@ -161,7 +160,7 @@ Guidelines:
 - Explain why you selected certain bookmarks
 - If no relevant bookmarks are found, suggest alternative searches
 - Consider semantic meaning, not just keyword matching
-- Pay attention to categories, dates, and context
+- Pay attention to dates, and context
 - Limit results to the most relevant bookmarks (typically 3-8)
 
 Return your response in this JSON format:
@@ -181,10 +180,10 @@ ${bookmarkData.length > 100 ? `\n(Note: Showing first 100 of ${bookmarkData.leng
 Please analyze the query and find the most relevant bookmarks, then provide a helpful response.`;
 
       const aiResponse = await aiService.callOpenAI(systemPrompt, userPrompt);
-      
+
       // Parse the AI response
       const responseData = JSON.parse(aiResponse.content);
-      
+
       // Get the relevant bookmarks
       const relevantBookmarks = responseData.bookmarks
         .filter((index: number) => index >= 0 && index < bookmarks.length)
@@ -228,7 +227,7 @@ Please analyze the query and find the most relevant bookmarks, then provide a he
         {/* Header */}
         <Flex p={4} borderBottomWidth="1px" borderColor={borderColor} align="center" justify="space-between">
           <HStack>
-            <Avatar size="sm" icon={<FiBot />} bg="blue.500" />
+            <Avatar size="sm" icon={<FiMessageCircle />} bg="blue.500" />
             <VStack align="start" spacing={0}>
               <Heading size="sm">AI Bookmark Assistant</Heading>
               <Text fontSize="xs" color="gray.500">
@@ -298,7 +297,7 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
   if (message.isLoading) {
     return (
       <HStack align="start" justify="flex-start">
-        <Avatar size="sm" icon={<FiBot />} bg="blue.500" />
+        <Avatar size="sm" icon={<FiMessageCircle />} bg="blue.500" />
         <Box
           bg={bgColor}
           color={textColor}
@@ -318,7 +317,7 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
 
   return (
     <HStack align="start" justify={isUser ? 'flex-end' : 'flex-start'}>
-      {!isUser && <Avatar size="sm" icon={<FiBot />} bg="blue.500" />}
+      {!isUser && <Avatar size="sm" icon={<FiMessageCircle />} bg="blue.500" />}
       <VStack align={isUser ? 'end' : 'start'} spacing={2} maxW="70%">
         <Box
           bg={bgColor}
@@ -373,13 +372,13 @@ const BookmarkResult = ({ bookmark }: { bookmark: Bookmark }) => {
               />
             </Link>
           </HStack>
-          
+
           {(bookmark as any).category && (
             <Badge size="sm" colorScheme="blue">
               {(bookmark as any).category}
             </Badge>
           )}
-          
+
           <Text fontSize="xs" color="gray.500" noOfLines={1}>
             {bookmark.url}
           </Text>

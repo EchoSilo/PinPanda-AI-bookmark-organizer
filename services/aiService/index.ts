@@ -1249,6 +1249,85 @@ const makeOpenAIRequest = async (
     return data.choices[0]?.message?.content;
   }
 };
+// Enhanced natural language search for chatbot
+export const searchBookmarksNaturalLanguage = async (
+  bookmarks: Bookmark[],
+  query: string,
+): Promise<{
+  response: string;
+  bookmarks: Bookmark[];
+  confidence: 'high' | 'medium' | 'low';
+}> => {
+  try {
+    Logger.info('AIService', `Processing natural language query: "${query}"`);
+    
+    // Prepare bookmark data for analysis
+    const bookmarkData = bookmarks.map((bookmark, index) => ({
+      index,
+      title: bookmark.title || 'Untitled',
+      url: bookmark.url,
+      folder: bookmark.folder || '',
+      dateAdded: bookmark.dateAdded,
+    }));
+
+    const systemPrompt = `You are a helpful AI assistant that helps users search through their bookmarks using natural language queries.
+
+Your job is to:
+1. Understand the user's natural language query and intent
+2. Find the most relevant bookmarks from their collection
+3. Provide a conversational, helpful response explaining what you found
+4. Include bookmark indices for the most relevant results
+
+Guidelines:
+- Be conversational and friendly in your response
+- Consider semantic meaning, not just keyword matching
+- Look for related concepts (e.g., "GenAI" relates to "AI", "machine learning", "artificial intelligence")
+- Pay attention to context clues like timeframes, categories, or specific technologies
+- If you find relevant bookmarks, explain why they match the query
+- If no relevant bookmarks found, suggest alternative search terms or broader categories
+- Limit results to the most relevant bookmarks (typically 3-8)
+- Consider the bookmark titles, URLs, and folder structures for relevance
+
+Return ONLY valid JSON in this exact format:
+{
+  "response": "Your conversational response explaining what you found and why",
+  "bookmarks": [array of bookmark indices that are most relevant],
+  "confidence": "high|medium|low"
+}`;
+
+    const userPrompt = `User Query: "${query}"
+
+Available bookmarks to search:
+${JSON.stringify(bookmarkData, null, 2)}
+
+Analyze the query and find the most relevant bookmarks, then provide a helpful conversational response.`;
+
+    const aiResponse = await callOpenAI(systemPrompt, userPrompt);
+    
+    // Extract JSON from response
+    const responseData = extractJsonFromResponse(aiResponse.content);
+    
+    if (!responseData) {
+      throw new Error('Failed to parse AI response');
+    }
+
+    // Get relevant bookmarks
+    const relevantBookmarks = (responseData.bookmarks || [])
+      .filter((index: number) => index >= 0 && index < bookmarks.length)
+      .map((index: number) => bookmarks[index]);
+
+    return {
+      response: responseData.response || 'I found some bookmarks that might be relevant to your query.',
+      bookmarks: relevantBookmarks,
+      confidence: responseData.confidence || 'medium',
+    };
+
+  } catch (error) {
+    Logger.error('AIService', 'Error in natural language search', error);
+    throw error;
+  }
+};
+
 export const searchBookmarks = async (
   bookmarks: Bookmark[],
   query: string,

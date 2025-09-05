@@ -1,13 +1,12 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Container, 
-  Heading, 
-  Text, 
-  VStack, 
+import {
+  Box,
+  Container,
+  Heading,
+  Text,
+  VStack,
   useToast,
   Alert,
   AlertIcon,
@@ -46,6 +45,7 @@ import AIProcessingScreen from './components/AIProcessingScreen';
 import BookmarkOrganizer from './components/BookmarkOrganizer';
 import AIResponseViewer from './components/AIResponseViewer';
 import BookmarkSearch from './components/BookmarkSearch';
+import BookmarkChatbot from './components/BookmarkChatbot';
 import APIKeyInput from './components/APIKeyInput';
 import DebugPanel from './components/DebugPanel';
 import PinPandaLogo from './components/PinPandaLogo';
@@ -55,10 +55,10 @@ export default function Home() {
   const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null);
   const [organizedBookmarks, setOrganizedBookmarks] = useState<OrganizedBookmarks | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingProgress, setProcessingProgress] = useState<ProcessingProgress>({ 
-    step: 0, 
-    message: '', 
-    progress: 0 
+  const [processingProgress, setProcessingProgress] = useState<ProcessingProgress>({
+    step: 0,
+    message: '',
+    progress: 0
   });
   const [error, setError] = useState<string | null>(null);
   const [aiResponses, setAiResponses] = useState<AIResponse[]>([]);
@@ -67,6 +67,7 @@ export default function Home() {
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+  const [currentView, setCurrentView] = useState<'upload' | 'organize' | 'search' | 'chat'>('upload');
 
   // Log application startup and set up event listeners
   useEffect(() => {
@@ -76,19 +77,19 @@ export default function Home() {
       info('App', 'Application started with DEBUG log level');
       // Check connection on startup
       checkConnection();
-      
+
       // Add event listener for cancel process
       const handleResetProcess = (event: Event) => {
         const customEvent = event as CustomEvent;
         info('App', `Process reset triggered: ${customEvent.detail?.message || 'No message'}`);
-        
+
         // Reset all states to return to upload screen
         setIsProcessing(false);
         setOrganizedBookmarks(null);
         setProcessingProgress({ step: 0, message: '', progress: 0 });
         setAiResponses([]);
         setError(null);
-        
+
         toast({
           title: 'Process Cancelled',
           description: 'You can now start a new process',
@@ -97,9 +98,9 @@ export default function Home() {
           isClosable: true,
         });
       };
-      
+
       window.addEventListener('resetBookmarkProcess', handleResetProcess);
-      
+
       // Clean up event listener
       return () => {
         window.removeEventListener('resetBookmarkProcess', handleResetProcess);
@@ -132,7 +133,7 @@ export default function Home() {
   const handleApiKeyChange = (key: string, isValid: boolean) => {
     info('App', `API key ${isValid ? 'validated successfully' : 'validation failed'}`);
     setConnectionStatus(isValid ? 'connected' : 'failed');
-    
+
     // If the key was cleared or found invalid, update the connection status
     if (!key || !isValid) {
       setConnectionStatus('failed');
@@ -142,7 +143,7 @@ export default function Home() {
   const processBookmarks = async (uploadedBookmarks: Bookmark[]) => {
     try {
       info('App', `Starting to process ${uploadedBookmarks.length} bookmarks`);
-      
+
       setIsProcessing(true);
       setBookmarks(uploadedBookmarks);
       setOrganizedBookmarks(null);
@@ -175,7 +176,7 @@ export default function Home() {
 
       // Set the organized bookmarks
       setOrganizedBookmarks(result);
-      
+
       toast({
         title: 'Bookmarks organized!',
         description: `Organized into ${result.categories.length} categories`,
@@ -186,7 +187,7 @@ export default function Home() {
     } catch (err) {
       logError('App', `Error processing bookmarks: ${err}`);
       setError(`Error processing bookmarks: ${err}`);
-      
+
       toast({
         title: 'Error',
         description: 'Failed to process bookmarks. Please try again.',
@@ -214,26 +215,31 @@ export default function Home() {
     checkConnection();
   };
 
+  // Placeholder for search results to be passed to BookmarkOrganizer
+  const [searchResults, setSearchResults] = useState<OrganizedBookmarks | null>(null);
+  // Keep a reference to all bookmarks for the search component
+  const allBookmarks = bookmarks || [];
+
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={8} align="stretch">
         <Flex justifyContent="center" alignItems="center" position="relative">
           <HStack spacing={3}>
             <PinPandaLogo size="lg" withTagline={true} />
-            <Tooltip 
-              label={connectionStatus === 'connected' 
-                ? 'OpenAI API Connected' 
-                : connectionStatus === 'failed' 
-                  ? 'OpenAI API Connection Failed' 
+            <Tooltip
+              label={connectionStatus === 'connected'
+                ? 'OpenAI API Connected'
+                : connectionStatus === 'failed'
+                  ? 'OpenAI API Connection Failed'
                   : 'OpenAI API Connection Unknown'
               }
             >
-              <Badge 
+              <Badge
                 colorScheme={
-                  connectionStatus === 'connected' 
-                    ? 'green' 
-                    : connectionStatus === 'failed' 
-                      ? 'red' 
+                  connectionStatus === 'connected'
+                    ? 'green'
+                    : connectionStatus === 'failed'
+                      ? 'red'
                       : 'gray'
                 }
                 fontSize="md"
@@ -255,24 +261,24 @@ export default function Home() {
           <Text fontSize="lg" color="gray.600" mb={4}>
             Upload your bookmarks and organize them with AI
           </Text>
-          
+
           <Box maxW="md" mx="auto" mb={6}>
             {connectionStatus === 'connected' ? (
-              <Flex 
-                direction="column" 
-                alignItems="center" 
-                bg="green.50" 
-                p={3} 
+              <Flex
+                direction="column"
+                alignItems="center"
+                bg="green.50"
+                p={3}
                 borderRadius="md"
               >
                 <Flex alignItems="center" mb={2}>
                   <Text color="green.600" fontWeight="medium" mr={2}>
                     OpenAI API Key connected successfully
                   </Text>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    colorScheme="green" 
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    colorScheme="green"
                     leftIcon={<EditIcon />}
                     onClick={handleModalOpen}
                   >
@@ -303,7 +309,7 @@ export default function Home() {
             <BookmarkUploader onBookmarksUploaded={processBookmarks} />
           </Box>
         )}
-        
+
         {isProcessing && (
           <VStack spacing={4} align="stretch">
             <AIProcessingScreen progress={processingProgress} />
@@ -315,31 +321,56 @@ export default function Home() {
 
         {organizedBookmarks && !isProcessing && (
           <>
-            {bookmarks && (
-              <BookmarkSearch 
-                bookmarks={bookmarks} 
-                onSearchResults={setOrganizedBookmarks} 
-              />
-            )}
-            <Tabs variant="enclosed" colorScheme="green">
+            <Tabs variant="enclosed" colorScheme="green" index={currentView === 'upload' ? 0 : currentView === 'organize' ? 1 : currentView === 'search' ? 2 : 3} onChange={(index) => {
+              if (index === 0) setCurrentView('upload');
+              else if (index === 1) setCurrentView('organize');
+              else if (index === 2) setCurrentView('search');
+              else if (index === 3) setCurrentView('chat');
+            }}>
               <TabList>
+                <Tab>Upload</Tab>
                 <Tab>Organized Bookmarks</Tab>
-                {showDebugger && aiResponses.length > 0 && (
-                  <Tab>AI Responses ({aiResponses.length})</Tab>
-                )}
+                <Tab>Search</Tab>
+                <Tab>AI Chat</Tab>
               </TabList>
               <TabPanels>
                 <TabPanel p={0} pt={4}>
-                  <BookmarkOrganizer 
-                    organizedBookmarks={organizedBookmarks} 
+                  {!organizedBookmarks && (
+                    <BookmarkUploader onBookmarksUploaded={processBookmarks} />
+                  )}
+                </TabPanel>
+                <TabPanel p={0} pt={4}>
+                  <BookmarkOrganizer
+                    organizedBookmarks={organizedBookmarks}
                     onReset={handleReset}
                   />
                 </TabPanel>
-                {showDebugger && aiResponses.length > 0 && (
-                  <TabPanel p={0} pt={4}>
-                    <AIResponseViewer responses={aiResponses} />
-                  </TabPanel>
-                )}
+                <TabPanel>
+                  <BookmarkSearch
+                    bookmarks={allBookmarks}
+                    onSearchResults={setSearchResults}
+                  />
+                  {searchResults && (
+                    <Box mt={4}>
+                      <BookmarkOrganizer
+                        organizedBookmarks={searchResults}
+                        onReset={() => setSearchResults(null)}
+                      />
+                    </Box>
+                  )}
+                </TabPanel>
+
+                <TabPanel>
+                  {organizedBookmarks ? (
+                    <BookmarkChatbot organizedBookmarks={organizedBookmarks} />
+                  ) : (
+                    <Box textAlign="center" p={8}>
+                      <Text color="gray.500">
+                        Please organize your bookmarks first to use the AI chat feature.
+                      </Text>
+                    </Box>
+                  )}
+                </TabPanel>
               </TabPanels>
             </Tabs>
           </>
@@ -351,18 +382,18 @@ export default function Home() {
             <FormLabel htmlFor="debug-mode" mb="0" mr={2}>
               Debug Mode
             </FormLabel>
-            <Tooltip 
+            <Tooltip
               label="Enabling debug mode will increase memory usage significantly"
               hasArrow
               placement="top"
             >
-              <Switch 
-                id="debug-mode" 
-                isChecked={showDebugger} 
+              <Switch
+                id="debug-mode"
+                isChecked={showDebugger}
                 onChange={() => {
                   const newValue = !showDebugger;
                   setShowDebugger(newValue);
-                  
+
                   // Show warning when enabling debug mode
                   if (newValue) {
                     toast({
@@ -397,23 +428,23 @@ export default function Home() {
               <VStack spacing={6} align="stretch">
                 <Box p={4} borderWidth="1px" borderRadius="md" bg={connectionStatus === 'connected' ? 'green.50' : 'red.50'}>
                   <Flex alignItems="center" mb={2}>
-                    <Badge 
-                      colorScheme={connectionStatus === 'connected' ? 'green' : 'red'} 
-                      fontSize="md" 
+                    <Badge
+                      colorScheme={connectionStatus === 'connected' ? 'green' : 'red'}
+                      fontSize="md"
                       mr={2}
                     >
                       {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
                     </Badge>
                     <Text fontWeight="medium">
-                      {connectionStatus === 'connected' 
-                        ? 'Successfully connected to OpenAI API' 
+                      {connectionStatus === 'connected'
+                        ? 'Successfully connected to OpenAI API'
                         : 'Failed to connect to OpenAI API'
                       }
                     </Text>
                   </Flex>
                   <Text fontSize="sm">
-                    {connectionStatus === 'connected' 
-                      ? 'Your API key is valid and working correctly.' 
+                    {connectionStatus === 'connected'
+                      ? 'Your API key is valid and working correctly.'
                       : 'Please check your API key and try again.'
                     }
                   </Text>
@@ -422,18 +453,18 @@ export default function Home() {
                 <Box>
                   <Heading size="sm" mb={3}>API Connection Options</Heading>
                   <HStack spacing={4}>
-                    <Button 
-                      colorScheme="blue" 
-                      onClick={checkConnection} 
+                    <Button
+                      colorScheme="blue"
+                      onClick={checkConnection}
                       isLoading={isCheckingConnection}
                       loadingText="Testing"
                     >
                       Test Connection
                     </Button>
-                    <Button 
-                      as="a" 
-                      href="/api-test" 
-                      colorScheme="blue" 
+                    <Button
+                      as="a"
+                      href="/api-test"
+                      colorScheme="blue"
                       variant="outline"
                     >
                       Advanced API Test
@@ -446,7 +477,7 @@ export default function Home() {
                 <Box>
                   <Heading size="sm" mb={3}>Need an API Key?</Heading>
                   <Text mb={4}>
-                    To use the AI features of this application, you need an OpenAI API key. 
+                    To use the AI features of this application, you need an OpenAI API key.
                     Follow these steps to get one:
                   </Text>
                   <APIKeyInput onApiKeyChange={handleApiKeyChange} />

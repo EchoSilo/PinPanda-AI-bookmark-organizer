@@ -40,6 +40,8 @@ interface BookmarkChatbotProps {
   organizedBookmarks: OrganizedBookmarks;
 }
 
+
+
 export default function BookmarkChatbot({ organizedBookmarks }: BookmarkChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -282,7 +284,7 @@ Please analyze the query and find the most relevant bookmarks, then provide a he
   );
 }
 
-// Message bubble component
+// Message bubble component (defined before usage)
 const MessageBubble = ({ message }: { message: ChatMessage }) => {
   const isUser = message.type === 'user';
   const bgColor = useColorModeValue(

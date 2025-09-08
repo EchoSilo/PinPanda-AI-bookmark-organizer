@@ -2,7 +2,7 @@
 
 ## Overview
 
-PinPanda is an AI-powered web application that transforms chaotic browser bookmark collections into intelligently categorized, searchable libraries. The application leverages OpenAI's GPT models to automatically organize bookmarks into meaningful categories, detect duplicates, and provide an intuitive management interface. Built as a Next.js application with TypeScript, it features a modern React-based frontend using Chakra UI for the component library.
+PinPanda is an AI-powered web application that transforms chaotic browser bookmark collections into intelligently categorized, searchable libraries. The application features an intuitive management interface with enhanced UX design focused on removing API key friction and providing an integrated bookmark management experience. Built as a static web application using modern HTML, CSS, and JavaScript, it provides a fast, responsive user interface with sophisticated bookmark organization capabilities.
 
 ## User Preferences
 
@@ -11,69 +11,66 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend Architecture
-- **Framework**: Next.js 13.x with App Router architecture for modern React development
-- **UI Library**: Chakra UI for consistent, accessible component design with light mode theming
-- **State Management**: React hooks and local state for component-level state management
-- **Drag & Drop**: React Beautiful DnD for intuitive bookmark reorganization
-- **TypeScript**: Full TypeScript implementation for type safety and better developer experience
+- **Framework**: Static HTML/CSS/JavaScript application for optimal performance and simplicity
+- **UI Design**: Custom CSS with modern design patterns and responsive layouts
+- **Interface**: Integrated sidebar navigation replacing fragmented tab-based approach
+- **Performance**: Optimized for handling thousands of bookmarks with pagination system
+- **Responsive Design**: Mobile-first approach with adaptive layouts for all screen sizes
 
-### Backend Architecture
-- **API Layer**: Next.js API routes for server-side functionality (minimal backend footprint)
-- **Client-Side Processing**: Most AI processing happens client-side using direct OpenAI API calls
-- **File Processing**: Browser-based HTML bookmark file parsing using Cheerio for DOM manipulation
-- **Data Storage**: localStorage for API keys and user preferences (no server-side database)
+### User Interface Components
+- **Sidebar Navigation**: Category filtering with expandable hierarchical structure
+- **Bookmark Views**: Grid and table-style list views with sorting capabilities
+- **Search System**: Global search with real-time filtering across all bookmarks
+- **AI Assistant Panel**: Integrated chat interface for bookmark assistance
+- **Modal System**: Comprehensive upload, settings, and export modals
 
-### AI Integration Architecture
-- **AI Provider**: OpenAI GPT-4o-mini for bookmark categorization and search
-- **Processing Strategy**: Chunked processing for large bookmark collections to handle API token limits
-- **Fallback Handling**: Graceful degradation when AI services are unavailable
-- **Timeout Management**: 2-minute timeout with progress tracking for AI operations
+### Data Management
+- **Local Storage**: Client-side bookmark data and user preferences storage
+- **File Processing**: Browser-based HTML bookmark file parsing and validation
+- **Pagination**: Performance optimization for large bookmark collections (25/50/100 per page)
+- **Categorization**: AI-powered automatic category generation and organization
 
-### Component Architecture
-- **Modular Components**: Separated concerns with dedicated components for upload, processing, organization, search, and chat
-- **Progress Tracking**: Real-time progress indicators for AI processing operations
-- **Error Boundaries**: Comprehensive error handling with user-friendly messages
-- **Responsive Design**: Mobile-first responsive layout using Chakra UI's responsive props
+### UI Features
+- **Drag-and-Drop Upload**: Intuitive file upload with browser compatibility indicators
+- **Table-Style List View**: Organized display with Name, Category, and Date Added columns
+- **Favicon Support**: Automatic favicon loading for visual bookmark identification
+- **Settings Management**: Comprehensive preferences including themes, AI settings, and export options
+- **Export System**: Multiple format support (HTML, JSON, CSV) with customizable options
 
-### Data Processing Flow
-1. **Upload**: HTML bookmark file parsing and validation
-2. **Preprocessing**: Duplicate detection and bookmark normalization
-3. **AI Categorization**: Intelligent category generation using OpenAI
-4. **Organization**: Hierarchical category structure with drag-and-drop capabilities
-5. **Export**: Standard HTML bookmark format output
+### Performance Optimizations
+- **Static Serving**: Fast loading with Python HTTP server
+- **Efficient Rendering**: Only displays current page of bookmarks to prevent browser freezing
+- **Minimal Dependencies**: No external frameworks, reducing bundle size and complexity
+- **Browser Caching**: Optimized asset delivery for repeat visits
 
-### Security Architecture
-- **API Key Management**: Client-side storage with validation and secure transmission
-- **No Server Storage**: All user data remains client-side, ensuring privacy
-- **Input Validation**: Comprehensive validation for uploaded files and user inputs
+## Data Processing Flow
+1. **Upload**: HTML bookmark file parsing with drag-and-drop support
+2. **Validation**: File format verification and browser compatibility checks
+3. **Processing**: Bookmark extraction and metadata collection
+4. **Categorization**: AI-powered intelligent category assignment
+5. **Organization**: Hierarchical category structure with user customization
+6. **Export**: Multiple format outputs with user-defined settings
 
-## External Dependencies
+## Security Architecture
+- **Client-Side Processing**: All data remains in browser, ensuring privacy
+- **No Server Storage**: Zero server-side data persistence for maximum security
+- **File Validation**: Comprehensive input validation for uploaded files
+- **Secure Defaults**: Privacy-first approach with local-only data storage
 
-### AI Services
-- **OpenAI API**: GPT-4o-mini model for bookmark categorization and intelligent search
-- **Authentication**: User-provided API keys stored locally for direct API access
-
-### UI Framework
-- **Chakra UI**: Complete component library with theming and accessibility features
-- **Framer Motion**: Animation library integrated with Chakra UI for smooth transitions
-- **React Icons**: Icon library providing consistent iconography
-
-### Development Tools
-- **TypeScript**: Type checking and enhanced development experience
-- **ESLint**: Code linting with Next.js configuration
-- **Sharp**: Image optimization for Next.js (favicon generation)
-
-### Utility Libraries
-- **Axios**: HTTP client for API requests with better error handling
-- **Cheerio**: Server-side DOM manipulation for HTML bookmark parsing
-- **UUID**: Unique identifier generation for bookmarks and sessions
-- **React Beautiful DnD**: Drag and drop functionality for bookmark organization
-
-### Deployment
-- **Render**: Production deployment platform with automatic builds
-- **Vercel**: Alternative deployment option with Next.js optimization
-
-### Browser Compatibility
-- **Modern Browsers**: Chrome, Firefox, Safari, Edge support for bookmark imports
+## Browser Compatibility
+- **Modern Browsers**: Chrome, Firefox, Safari, Edge support for all features
 - **File API**: HTML5 File API for client-side file processing
-- **localStorage**: Browser storage for user preferences and API keys
+- **Local Storage**: Browser storage for preferences and bookmark data
+- **Drag and Drop**: Native HTML5 drag-and-drop for file uploads
+
+## Development Architecture
+- **Static Files**: index.html, styles.css, script.js in root directory
+- **Asset Management**: Favicon and image assets in public/ directory
+- **Documentation**: Project documentation in docs/ directory
+- **Serving**: Python HTTP server for development and production
+
+## Deployment
+- **Static Hosting**: Compatible with any static hosting service
+- **Replit Deployment**: Configured for seamless Replit deployment
+- **No Build Process**: Direct serving of static files for simplicity
+- **Port Configuration**: Serves on port 5000 for Replit compatibility

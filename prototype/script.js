@@ -1,3 +1,19 @@
+// Extended Mock Data with dates
+function generateBookmarkDate() {
+    const start = new Date(2023, 0, 1);
+    const end = new Date();
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+
+function getFaviconUrl(url) {
+    try {
+        const domain = new URL(url).hostname;
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+    } catch {
+        return null;
+    }
+}
+
 // Mock Data
 const mockCategories = {
     "Web Development": {
@@ -61,73 +77,97 @@ const mockBookmarks = [
         title: "React Documentation",
         url: "https://react.dev",
         description: "The official React documentation with guides, API reference, and tutorials for building user interfaces.",
-        category: "Web Development / React"
+        category: "Web Development / React",
+        dateAdded: new Date('2023-11-15'),
+        favicon: getFaviconUrl('https://react.dev')
     },
     {
         title: "Figma - Collaborative Interface Design",
         url: "https://figma.com",
         description: "A collaborative interface design tool that helps teams create, prototype, and gather feedback.",
-        category: "Design / Tools / Figma"
+        category: "Design / Tools / Figma",
+        dateAdded: new Date('2023-10-22'),
+        favicon: getFaviconUrl('https://figma.com')
     },
     {
         title: "ChatGPT by OpenAI",
         url: "https://chat.openai.com",
         description: "AI-powered conversational assistant for answering questions, writing, and creative tasks.",
-        category: "AI & Machine Learning / ChatGPT Resources"
+        category: "AI & Machine Learning / ChatGPT Resources",
+        dateAdded: new Date('2023-12-01'),
+        favicon: getFaviconUrl('https://chat.openai.com')
     },
     {
         title: "GitHub - Code Collaboration",
         url: "https://github.com",
         description: "Platform for version control, code collaboration, and project management for developers.",
-        category: "Web Development / JavaScript"
+        category: "Web Development / JavaScript",
+        dateAdded: new Date('2023-09-15'),
+        favicon: getFaviconUrl('https://github.com')
     },
     {
         title: "Notion - All-in-one Workspace",
         url: "https://notion.so",
         description: "Versatile workspace for notes, tasks, databases, and team collaboration.",
-        category: "Productivity / Note Taking"
+        category: "Productivity / Note Taking",
+        dateAdded: new Date('2023-11-08'),
+        favicon: getFaviconUrl('https://notion.so')
     },
     {
         title: "TechCrunch",
         url: "https://techcrunch.com",
         description: "Leading technology news website covering startups, gadgets, and tech industry trends.",
-        category: "News & Blogs / Tech News"
+        category: "News & Blogs / Tech News",
+        dateAdded: new Date('2023-10-12'),
+        favicon: getFaviconUrl('https://techcrunch.com')
     },
     {
         title: "Tailwind CSS",
         url: "https://tailwindcss.com",
         description: "Utility-first CSS framework for rapidly building custom user interfaces.",
-        category: "Web Development / CSS Frameworks"
+        category: "Web Development / CSS Frameworks",
+        dateAdded: new Date('2023-11-20'),
+        favicon: getFaviconUrl('https://tailwindcss.com')
     },
     {
         title: "Dribbble - Design Inspiration",
         url: "https://dribbble.com",
         description: "Community of designers sharing screenshots of their work, process, and projects.",
-        category: "Design / UI/UX"
+        category: "Design / UI/UX",
+        dateAdded: new Date('2023-10-05'),
+        favicon: getFaviconUrl('https://dribbble.com')
     },
     {
         title: "Jupyter Notebooks",
         url: "https://jupyter.org",
         description: "Web-based interactive development environment for data science and machine learning.",
-        category: "AI & Machine Learning / Data Science"
+        category: "AI & Machine Learning / Data Science",
+        dateAdded: new Date('2023-09-28'),
+        favicon: getFaviconUrl('https://jupyter.org')
     },
     {
         title: "Zapier - Automation Platform",
         url: "https://zapier.com",
         description: "Automation platform that connects your apps and automates workflows.",
-        category: "Productivity / Automation"
+        category: "Productivity / Automation",
+        dateAdded: new Date('2023-11-12'),
+        favicon: getFaviconUrl('https://zapier.com')
     },
     {
         title: "Vue.js Documentation",
         url: "https://vuejs.org",
         description: "Progressive JavaScript framework for building user interfaces and single-page applications.",
-        category: "Web Development / Vue.js"
+        category: "Web Development / Vue.js",
+        dateAdded: new Date('2023-10-18'),
+        favicon: getFaviconUrl('https://vuejs.org')
     },
     {
         title: "Material Design",
         url: "https://material.io",
         description: "Google's design system with guidelines, components, and tools for digital products.",
-        category: "Design / Design Systems"
+        category: "Design / Design Systems",
+        dateAdded: new Date('2023-11-02'),
+        favicon: getFaviconUrl('https://material.io')
     }
 ];
 
@@ -136,6 +176,11 @@ let currentCategory = '';
 let currentView = 'grid';
 let searchQuery = '';
 let isAISearch = false;
+let currentPage = 1;
+let pageSize = 25;
+let sortField = 'dateAdded';
+let sortDirection = 'desc';
+let currentBookmarks = [];
 
 // DOM Elements
 const categoryTree = document.getElementById('category-tree');
@@ -300,11 +345,60 @@ function selectCategory(path, item) {
     filterControls.style.display = 'none';
 }
 
+// Pagination and Sorting
+function sortBookmarks(bookmarks) {
+    return [...bookmarks].sort((a, b) => {
+        let aVal, bVal;
+        
+        switch (sortField) {
+            case 'title':
+                aVal = a.title.toLowerCase();
+                bVal = b.title.toLowerCase();
+                break;
+            case 'category':
+                aVal = a.category.toLowerCase();
+                bVal = b.category.toLowerCase();
+                break;
+            case 'dateAdded':
+                aVal = a.dateAdded;
+                bVal = b.dateAdded;
+                break;
+            default:
+                return 0;
+        }
+        
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
+
+function paginateBookmarks(bookmarks) {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return bookmarks.slice(startIndex, endIndex);
+}
+
+function getTotalPages(totalBookmarks) {
+    return Math.ceil(totalBookmarks / pageSize);
+}
+
 // Render Bookmarks
 function renderBookmarks(bookmarks) {
+    currentBookmarks = bookmarks;
+    const sortedBookmarks = sortBookmarks(bookmarks);
+    const totalPages = getTotalPages(sortedBookmarks.length);
+    
+    // Reset to page 1 if current page is beyond available pages
+    if (currentPage > totalPages && totalPages > 0) {
+        currentPage = 1;
+    }
+    
+    const paginatedBookmarks = paginateBookmarks(sortedBookmarks);
+    
     bookmarkCount.textContent = `(${bookmarks.length} bookmarks)`;
     
-    bookmarksContainer.className = `bookmarks-container bookmarks-${currentView}`;
+    bookmarksContainer.className = `bookmarks-container`;
     bookmarksContainer.innerHTML = '';
     
     if (bookmarks.length === 0) {
@@ -317,13 +411,75 @@ function renderBookmarks(bookmarks) {
         return;
     }
     
-    bookmarks.forEach(bookmark => {
-        const item = createBookmarkItem(bookmark);
-        bookmarksContainer.appendChild(item);
-    });
+    if (currentView === 'list') {
+        renderBookmarkTable(paginatedBookmarks);
+    } else {
+        renderBookmarkGrid(paginatedBookmarks);
+    }
+    
+    renderPagination(sortedBookmarks.length, totalPages);
 }
 
-function createBookmarkItem(bookmark) {
+function renderBookmarkGrid(bookmarks) {
+    const gridContainer = document.createElement('div');
+    gridContainer.className = 'bookmarks-grid';
+    
+    bookmarks.forEach(bookmark => {
+        const item = createBookmarkGridItem(bookmark);
+        gridContainer.appendChild(item);
+    });
+    
+    bookmarksContainer.appendChild(gridContainer);
+}
+
+function renderBookmarkTable(bookmarks) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'bookmarks-list';
+    
+    const table = document.createElement('table');
+    table.className = 'bookmarks-table';
+    
+    // Create header
+    const header = document.createElement('thead');
+    header.className = 'bookmarks-table-header';
+    header.innerHTML = `
+        <tr>
+            <th class="sortable" onclick="handleSort('title')">
+                NAME
+                <span class="sort-icon ${sortField === 'title' ? 'active' : ''}">
+                    ${sortField === 'title' && sortDirection === 'asc' ? '↑' : '↓'}
+                </span>
+            </th>
+            <th class="sortable" onclick="handleSort('category')">
+                CATEGORY
+                <span class="sort-icon ${sortField === 'category' ? 'active' : ''}">
+                    ${sortField === 'category' && sortDirection === 'asc' ? '↑' : '↓'}
+                </span>
+            </th>
+            <th class="sortable" onclick="handleSort('dateAdded')">
+                ADDED
+                <span class="sort-icon ${sortField === 'dateAdded' ? 'active' : ''}">
+                    ${sortField === 'dateAdded' && sortDirection === 'asc' ? '↑' : '↓'}
+                </span>
+            </th>
+            <th style="width: 100px;"></th>
+        </tr>
+    `;
+    
+    const tbody = document.createElement('tbody');
+    
+    bookmarks.forEach(bookmark => {
+        const row = createBookmarkTableRow(bookmark);
+        tbody.appendChild(row);
+    });
+    
+    table.appendChild(header);
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+    bookmarksContainer.appendChild(tableContainer);
+}
+
+function createBookmarkGridItem(bookmark) {
     const item = document.createElement('div');
     item.className = 'bookmark-item';
     item.onclick = () => window.open(bookmark.url, '_blank');
@@ -338,6 +494,148 @@ function createBookmarkItem(bookmark) {
     `;
     
     return item;
+}
+
+function createBookmarkTableRow(bookmark) {
+    const row = document.createElement('tr');
+    row.className = 'bookmarks-table-row';
+    
+    const favicon = bookmark.favicon ? 
+        `<img src="${bookmark.favicon}" alt="" class="bookmark-favicon" onerror="this.style.display='none'" />` :
+        `<div class="bookmark-favicon">🔗</div>`;
+    
+    const categoryParts = bookmark.category.split(' / ');
+    const categoryTags = categoryParts.map(part => 
+        `<span class="bookmark-category-tag">${part}</span>`
+    ).join('');
+    
+    const dateFormatted = bookmark.dateAdded.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+    
+    row.innerHTML = `
+        <td class="bookmarks-table-cell">
+            <div class="bookmark-name-cell">
+                ${favicon}
+                <div class="bookmark-info">
+                    <a href="${bookmark.url}" class="bookmark-title" target="_blank">
+                        ${bookmark.title}
+                    </a>
+                    <div class="bookmark-url">${bookmark.url}</div>
+                </div>
+            </div>
+        </td>
+        <td class="bookmarks-table-cell">
+            <div class="bookmark-category-cell">
+                ${categoryTags}
+            </div>
+        </td>
+        <td class="bookmarks-table-cell">
+            <div class="bookmark-date">${dateFormatted}</div>
+        </td>
+        <td class="bookmarks-table-cell">
+            <div class="bookmark-actions">
+                <button class="action-btn" onclick="window.open('${bookmark.url}', '_blank')" title="Open">
+                    ↗
+                </button>
+                <button class="action-btn" onclick="showBookmarkMenu(event)" title="More options">
+                    ⋯
+                </button>
+            </div>
+        </td>
+    `;
+    
+    return row;
+}
+
+function renderPagination(totalBookmarks, totalPages) {
+    if (totalBookmarks <= pageSize) return;
+    
+    const paginationContainer = document.createElement('div');
+    paginationContainer.className = 'pagination-container';
+    
+    const startItem = ((currentPage - 1) * pageSize) + 1;
+    const endItem = Math.min(currentPage * pageSize, totalBookmarks);
+    
+    paginationContainer.innerHTML = `
+        <div class="pagination-info">
+            Showing ${startItem}-${endItem} of ${totalBookmarks} bookmarks
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                ← Previous
+            </button>
+            ${generatePageNumbers(totalPages)}
+            <button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                Next →
+            </button>
+            <div class="page-size-selector">
+                <span>Show:</span>
+                <select onchange="changePageSize(this.value)">
+                    <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
+                    <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+                    <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+                </select>
+            </div>
+        </div>
+    `;
+    
+    bookmarksContainer.appendChild(paginationContainer);
+}
+
+function generatePageNumbers(totalPages) {
+    let pages = '';
+    const maxVisible = 5;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+    if (endPage - startPage + 1 < maxVisible) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        pages += `
+            <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">
+                ${i}
+            </button>
+        `;
+    }
+    
+    return pages;
+}
+
+function goToPage(page) {
+    const totalPages = getTotalPages(currentBookmarks.length);
+    if (page < 1 || page > totalPages) return;
+    
+    currentPage = page;
+    renderBookmarks(currentBookmarks);
+}
+
+function changePageSize(newSize) {
+    pageSize = parseInt(newSize);
+    currentPage = 1;
+    renderBookmarks(currentBookmarks);
+}
+
+function handleSort(field) {
+    if (sortField === field) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortField = field;
+        sortDirection = 'asc';
+    }
+    
+    renderBookmarks(currentBookmarks);
+}
+
+function showBookmarkMenu(event) {
+    event.stopPropagation();
+    // Placeholder for bookmark context menu
+    console.log('Show bookmark menu');
 }
 
 // Search Functionality
@@ -433,16 +731,10 @@ function setView(view) {
     document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
-    // Re-render with new view
-    const currentBookmarks = searchQuery ? 
-        mockBookmarks.filter(bookmark => {
-            const searchLower = searchQuery.toLowerCase();
-            return bookmark.title.toLowerCase().includes(searchLower) ||
-                   bookmark.description.toLowerCase().includes(searchLower);
-        }) : 
-        (currentCategory === '' ? mockBookmarks : 
-         mockBookmarks.filter(bookmark => bookmark.category.startsWith(currentCategory)));
+    // Reset to page 1 when changing views
+    currentPage = 1;
     
+    // Re-render with new view
     renderBookmarks(currentBookmarks);
 }
 

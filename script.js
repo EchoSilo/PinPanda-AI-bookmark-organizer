@@ -85,17 +85,21 @@ function loadAISettings() {
         if (savedSettings) {
             const settings = JSON.parse(savedSettings);
             
-            const aiEnabled = document.getElementById('ai-enabled');
-            const aiModel = document.getElementById('ai-model');
-            const apiKey = document.getElementById('openai-api-key');
-            const categorizationDepth = document.getElementById('categorization-depth');
+            // Use setTimeout to ensure DOM is ready
+            setTimeout(() => {
+                const aiEnabled = document.getElementById('ai-enabled');
+                const aiModel = document.getElementById('ai-model');
+                const apiKey = document.getElementById('openai-api-key');
+                const categorizationDepth = document.getElementById('categorization-depth');
+                
+                if (aiEnabled) aiEnabled.checked = settings.aiEnabled;
+                if (aiModel) aiModel.value = settings.aiModel;
+                if (apiKey) apiKey.value = settings.apiKey;
+                if (categorizationDepth) categorizationDepth.value = settings.categorizationDepth;
+                
+                console.log('AI settings loaded');
+            }, 100);
             
-            if (aiEnabled) aiEnabled.checked = settings.aiEnabled;
-            if (aiModel) aiModel.value = settings.aiModel;
-            if (apiKey) apiKey.value = settings.apiKey;
-            if (categorizationDepth) categorizationDepth.value = settings.categorizationDepth;
-            
-            console.log('AI settings loaded');
             return settings;
         }
     } catch (error) {
@@ -1305,6 +1309,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Settings Tab Management
 function switchSettingsTab(tabName) {
+    console.log('Switching to tab:', tabName);
+    
     // Remove active class from all tabs and content
     document.querySelectorAll('.settings-tab').forEach(tab => {
         tab.classList.remove('active');
@@ -1314,8 +1320,28 @@ function switchSettingsTab(tabName) {
     });
     
     // Add active class to selected tab and content
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    document.getElementById(`${tabName}-tab`).classList.add('active');
+    const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+    const selectedContent = document.getElementById(`${tabName}-tab`);
+    
+    if (selectedTab) selectedTab.classList.add('active');
+    if (selectedContent) selectedContent.classList.add('active');
+    
+    // Load AI settings when switching to AI tab
+    if (tabName === 'ai') {
+        setTimeout(() => {
+            const settings = JSON.parse(localStorage.getItem('pinpanda_ai_settings') || '{}');
+            
+            const aiEnabled = document.getElementById('ai-enabled');
+            const aiModel = document.getElementById('ai-model');
+            const apiKey = document.getElementById('openai-api-key');
+            const categorizationDepth = document.getElementById('categorization-depth');
+            
+            if (aiEnabled && settings.aiEnabled !== undefined) aiEnabled.checked = settings.aiEnabled;
+            if (aiModel && settings.aiModel) aiModel.value = settings.aiModel;
+            if (apiKey && settings.apiKey) apiKey.value = settings.apiKey;
+            if (categorizationDepth && settings.categorizationDepth) categorizationDepth.value = settings.categorizationDepth;
+        }, 50);
+    }
 }
 
 // Theme Selection

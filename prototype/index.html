@@ -31,6 +31,7 @@
             
             <div class="header-right">
                 <button class="btn-secondary" onclick="showExportModal()">Export</button>
+                <button class="btn-secondary" onclick="showSettingsModal()">⚙️ Settings</button>
                 <button class="btn-primary" onclick="showUploadModal()">+ Upload</button>
                 <button class="ai-toggle" onclick="toggleAIPanel()">💬 AI Assistant</button>
             </div>
@@ -104,6 +105,182 @@
             <button class="btn-primary">Export as HTML</button>
             <button class="btn-secondary">Export as JSON</button>
             <button class="btn-secondary" onclick="hideExportModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal" style="display: none;">
+        <div class="settings-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Settings</h3>
+                <button class="modal-close" onclick="hideSettingsModal()">×</button>
+            </div>
+            
+            <div class="settings-layout">
+                <div class="settings-sidebar">
+                    <nav class="settings-nav">
+                        <button class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')">
+                            General
+                        </button>
+                        <button class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">
+                            Appearance
+                        </button>
+                        <button class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">
+                            AI Settings
+                        </button>
+                        <button class="settings-tab" data-tab="export" onclick="switchSettingsTab('export')">
+                            Export
+                        </button>
+                    </nav>
+                </div>
+                
+                <div class="settings-content">
+                    <!-- General Tab -->
+                    <div id="general-tab" class="settings-tab-content active">
+                        <h3 class="settings-section-title">General Settings</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label for="display-name">Display Name</label>
+                                <input type="text" id="display-name" class="form-input" value="John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email Address</label>
+                                <input type="email" id="email" class="form-input" value="john.doe@example.com">
+                            </div>
+                            <div class="form-group">
+                                <div class="form-toggle-group">
+                                    <div class="toggle-info">
+                                        <label for="notifications">Email Notifications</label>
+                                        <p class="form-description">Receive notifications about new features and updates</p>
+                                    </div>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="notifications" checked>
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Appearance Tab -->
+                    <div id="appearance-tab" class="settings-tab-content">
+                        <h3 class="settings-section-title">Appearance Settings</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label>Theme</label>
+                                <div class="theme-options">
+                                    <div class="theme-option active" data-theme="light">
+                                        <div class="theme-preview light-theme"></div>
+                                        <span>Light</span>
+                                    </div>
+                                    <div class="theme-option" data-theme="dark">
+                                        <div class="theme-preview dark-theme"></div>
+                                        <span>Dark</span>
+                                    </div>
+                                    <div class="theme-option" data-theme="system">
+                                        <div class="theme-preview system-theme"></div>
+                                        <span>System</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Default View</label>
+                                <div class="radio-group">
+                                    <label class="radio-option">
+                                        <input type="radio" name="default-view" value="grid" checked>
+                                        <span>Grid</span>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="default-view" value="list">
+                                        <span>List</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="density">Display Density</label>
+                                <select id="density" class="form-select">
+                                    <option value="compact">Compact</option>
+                                    <option value="comfortable" selected>Comfortable</option>
+                                    <option value="spacious">Spacious</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Settings Tab -->
+                    <div id="ai-tab" class="settings-tab-content">
+                        <h3 class="settings-section-title">AI Settings</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <div class="form-toggle-group">
+                                    <div class="toggle-info">
+                                        <label for="ai-enabled">Enable AI Features</label>
+                                        <p class="form-description">Use AI to categorize and search your bookmarks</p>
+                                    </div>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="ai-enabled" checked>
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="ai-model">AI Model</label>
+                                <select id="ai-model" class="form-select">
+                                    <option value="gpt-3.5">GPT-3.5 (Faster)</option>
+                                    <option value="gpt-4" selected>GPT-4 (More Accurate)</option>
+                                </select>
+                                <p class="form-description">GPT-4 provides more accurate categorization but may be slower</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="categorization-depth">Categorization Depth</label>
+                                <select id="categorization-depth" class="form-select">
+                                    <option value="simple">Simple (Few Categories)</option>
+                                    <option value="balanced" selected>Balanced</option>
+                                    <option value="detailed">Detailed (Many Subcategories)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Export Tab -->
+                    <div id="export-tab" class="settings-tab-content">
+                        <h3 class="settings-section-title">Export Settings</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label>Export Format</label>
+                                <div class="export-options">
+                                    <div class="export-option">
+                                        <h4>HTML Bookmarks</h4>
+                                        <p>Export as standard bookmark file compatible with all browsers</p>
+                                        <button class="btn-primary">📄 Export HTML</button>
+                                    </div>
+                                    <div class="export-option">
+                                        <h4>JSON Data</h4>
+                                        <p>Export raw bookmark data with categories and metadata</p>
+                                        <button class="btn-secondary">📊 Export JSON</button>
+                                    </div>
+                                    <div class="export-option">
+                                        <h4>CSV Spreadsheet</h4>
+                                        <p>Export as spreadsheet for analysis and reporting</p>
+                                        <button class="btn-secondary">📈 Export CSV</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-toggle-group">
+                                    <div class="toggle-info">
+                                        <label for="include-categories">Include Categories</label>
+                                        <p class="form-description">Include AI-generated categories in export</p>
+                                    </div>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="include-categories" checked>
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

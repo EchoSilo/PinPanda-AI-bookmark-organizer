@@ -1,0 +1,369 @@
+import React, { useState } from 'react'
+import { X as XIcon, Download as DownloadIcon } from 'lucide-react'
+export function SettingsModal({ onClose }) {
+  const [activeTab, setActiveTab] = useState('general')
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-medium">Settings</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <XIcon size={20} />
+          </button>
+        </div>
+        <div className="flex h-96">
+          <div className="w-48 border-r border-gray-200 p-4">
+            <nav className="space-y-1">
+              <button
+                onClick={() => setActiveTab('general')}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium ${activeTab === 'general' ? 'bg-green-50 text-green-700' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                General
+              </button>
+              <button
+                onClick={() => setActiveTab('appearance')}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium ${activeTab === 'appearance' ? 'bg-green-50 text-green-700' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                Appearance
+              </button>
+              <button
+                onClick={() => setActiveTab('aiSettings')}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium ${activeTab === 'aiSettings' ? 'bg-green-50 text-green-700' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                AI Settings
+              </button>
+              <button
+                onClick={() => setActiveTab('export')}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium ${activeTab === 'export' ? 'bg-green-50 text-green-700' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                Export
+              </button>
+            </nav>
+          </div>
+          <div className="flex-1 p-6 overflow-y-auto">
+            {activeTab === 'general' && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  General Settings
+                </h3>
+                <div className="space-y-6">
+                  <div>
+                    <label
+                      htmlFor="username"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Display Name
+                    </label>
+                    <input
+                      type="text"
+                      id="username"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                      defaultValue="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                      defaultValue="john.doe@example.com"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="notifications"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        Email Notifications
+                      </label>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          name="notifications"
+                          id="notifications"
+                          defaultChecked
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="notifications"
+                          className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"
+                        >
+                          <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out"></span>
+                        </label>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Receive notifications about new features and updates
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'appearance' && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Appearance Settings
+                </h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Theme
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="border rounded-md p-3 flex flex-col items-center hover:bg-gray-50 cursor-pointer border-green-500">
+                        <div className="w-full h-10 bg-white border border-gray-200 rounded mb-2"></div>
+                        <span className="text-sm font-medium text-gray-900">
+                          Light
+                        </span>
+                      </div>
+                      <div className="border rounded-md p-3 flex flex-col items-center hover:bg-gray-50 cursor-pointer">
+                        <div className="w-full h-10 bg-gray-800 rounded mb-2"></div>
+                        <span className="text-sm font-medium text-gray-900">
+                          Dark
+                        </span>
+                      </div>
+                      <div className="border rounded-md p-3 flex flex-col items-center hover:bg-gray-50 cursor-pointer">
+                        <div className="w-full h-10 bg-gradient-to-r from-white to-gray-800 rounded mb-2"></div>
+                        <span className="text-sm font-medium text-gray-900">
+                          System
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default View
+                    </label>
+                    <div className="flex items-center space-x-4">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          name="view"
+                          value="grid"
+                          className="text-green-600"
+                          defaultChecked
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Grid</span>
+                      </label>
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          name="view"
+                          value="list"
+                          className="text-green-600"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">List</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="density"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Display Density
+                    </label>
+                    <select
+                      id="density"
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
+                      defaultValue="comfortable"
+                    >
+                      <option value="compact">Compact</option>
+                      <option value="comfortable">Comfortable</option>
+                      <option value="spacious">Spacious</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'aiSettings' && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  AI Settings
+                </h3>
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="aiEnabled"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        Enable AI Features
+                      </label>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          name="aiEnabled"
+                          id="aiEnabled"
+                          defaultChecked
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="aiEnabled"
+                          className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"
+                        >
+                          <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out"></span>
+                        </label>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Use AI to categorize and search your bookmarks
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="aiModel"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      AI Model
+                    </label>
+                    <select
+                      id="aiModel"
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
+                      defaultValue="gpt-4"
+                    >
+                      <option value="gpt-3.5">GPT-3.5 (Faster)</option>
+                      <option value="gpt-4">GPT-4 (More Accurate)</option>
+                    </select>
+                    <p className="mt-1 text-sm text-gray-500">
+                      GPT-4 provides more accurate categorization but may be
+                      slower
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="categorization"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Categorization Depth
+                    </label>
+                    <select
+                      id="categorization"
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
+                      defaultValue="balanced"
+                    >
+                      <option value="simple">Simple (Few Categories)</option>
+                      <option value="balanced">Balanced</option>
+                      <option value="detailed">
+                        Detailed (Many Subcategories)
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'export' && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Export Bookmarks
+                </h3>
+                <div className="space-y-6">
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <p className="text-sm text-gray-600">
+                      Export your bookmarks to use them in other browsers or
+                      applications. The exported file will maintain your
+                      PinPanda organization structure.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Export Format
+                    </label>
+                    <div className="flex items-center space-x-4">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          name="format"
+                          value="html"
+                          className="text-green-600"
+                          defaultChecked
+                        />
+                        <span className="ml-2 text-sm text-gray-700">
+                          HTML (Browser Compatible)
+                        </span>
+                      </label>
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          name="format"
+                          value="json"
+                          className="text-green-600"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">JSON</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      What to Export
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="rounded text-green-600"
+                          defaultChecked
+                        />
+                        <span className="ml-2 text-sm text-gray-700">
+                          All bookmarks
+                        </span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="rounded text-green-600"
+                          defaultChecked
+                        />
+                        <span className="ml-2 text-sm text-gray-700">
+                          Category structure
+                        </span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="rounded text-green-600"
+                          defaultChecked
+                        />
+                        <span className="ml-2 text-sm text-gray-700">
+                          Tags and metadata
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                  <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <DownloadIcon size={16} className="mr-2" />
+                    Export Bookmarks
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex justify-end rounded-b-lg">
+          <button
+            onClick={onClose}
+            className="mr-3 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

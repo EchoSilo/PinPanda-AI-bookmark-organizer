@@ -822,6 +822,14 @@ function showUploadModal() {
     document.getElementById('upload-modal').style.display = 'flex';
 }
 
+function showSettingsModal() {
+    document.getElementById('settings-modal').style.display = 'flex';
+}
+
+function hideSettingsModal() {
+    document.getElementById('settings-modal').style.display = 'none';
+}
+
 function hideUploadModal() {
     document.getElementById('upload-modal').style.display = 'none';
     resetUploadArea();
@@ -922,10 +930,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Settings Tab Management
+function switchSettingsTab(tabName) {
+    // Remove active class from all tabs and content
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.settings-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Add active class to selected tab and content
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+}
+
+// Theme Selection
+function selectTheme(theme) {
+    document.querySelectorAll('.theme-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
+    
+    // In a real app, this would apply the theme
+    console.log('Theme changed to:', theme);
+}
+
+// Settings form handlers
+document.addEventListener('DOMContentLoaded', function() {
+    // Theme option click handlers
+    document.querySelectorAll('.theme-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const theme = this.dataset.theme;
+            selectTheme(theme);
+        });
+    });
+    
+    // Form change handlers for persistence
+    const settingsForm = document.querySelector('.settings-form');
+    if (settingsForm) {
+        settingsForm.addEventListener('change', function(e) {
+            // In a real app, this would save settings to localStorage
+            console.log('Setting changed:', e.target.id, e.target.value || e.target.checked);
+        });
+    }
+});
+
 // Close modals when clicking outside
 window.addEventListener('click', function(e) {
     const exportModal = document.getElementById('export-modal');
     const uploadModal = document.getElementById('upload-modal');
+    const settingsModal = document.getElementById('settings-modal');
     
     if (e.target === exportModal) {
         hideExportModal();
@@ -933,5 +988,9 @@ window.addEventListener('click', function(e) {
     
     if (e.target === uploadModal) {
         hideUploadModal();
+    }
+    
+    if (e.target === settingsModal) {
+        hideSettingsModal();
     }
 });

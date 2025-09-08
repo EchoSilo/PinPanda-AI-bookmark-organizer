@@ -11,8 +11,56 @@ function getFaviconUrl(url) {
 
 // Data Storage
 let categories = {};
-
 let bookmarks = [];
+
+// Local Storage Functions
+function saveBookmarksToStorage() {
+    try {
+        localStorage.setItem('pinpanda_bookmarks', JSON.stringify(bookmarks));
+        localStorage.setItem('pinpanda_categories', JSON.stringify(categories));
+        console.log('Bookmarks saved to storage');
+    } catch (error) {
+        console.error('Error saving bookmarks to storage:', error);
+    }
+}
+
+function loadBookmarksFromStorage() {
+    try {
+        const savedBookmarks = localStorage.getItem('pinpanda_bookmarks');
+        const savedCategories = localStorage.getItem('pinpanda_categories');
+        
+        if (savedBookmarks) {
+            bookmarks = JSON.parse(savedBookmarks);
+            // Convert date strings back to Date objects
+            bookmarks.forEach(bookmark => {
+                if (bookmark.dateAdded && typeof bookmark.dateAdded === 'string') {
+                    bookmark.dateAdded = new Date(bookmark.dateAdded);
+                }
+            });
+            console.log(`Loaded ${bookmarks.length} bookmarks from storage`);
+        }
+        
+        if (savedCategories) {
+            categories = JSON.parse(savedCategories);
+            console.log('Loaded categories from storage');
+        }
+        
+        return bookmarks.length > 0;
+    } catch (error) {
+        console.error('Error loading bookmarks from storage:', error);
+        return false;
+    }
+}
+
+function clearBookmarkStorage() {
+    localStorage.removeItem('pinpanda_bookmarks');
+    localStorage.removeItem('pinpanda_categories');
+    bookmarks = [];
+    categories = {};
+    renderCategoryTree();
+    updateBookmarkDisplay();
+    console.log('Bookmark storage cleared');
+}
 
 // State Management
 let currentCategory = '';
@@ -37,6 +85,9 @@ const filterControls = document.getElementById('filter-controls');
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
+    // Load existing bookmarks from storage
+    loadBookmarksFromStorage();
+    
     renderCategoryTree();
     updateBookmarkDisplay();
     setupEventListeners();
@@ -736,20 +787,181 @@ function processUploadedFile(file) {
     
     console.log('Processing file:', file.name);
     
-    // In a real application, this would process the file
-    // For the prototype, we'll just show a success message
+    // Show processing state
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.innerHTML = `
+        <div class="upload-icon">⏳</div>
+        <div class="upload-text">Processing bookmarks...</div>
+        <div class="upload-subtext">Parsing ${file.name}</div>
+    `;
+    
+    // Read and parse the file
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const htmlContent = e.target.result;
+            const parsedBookmarks = parseBookmarkFile(htmlContent);
+            
+            if (parsedBookmarks.length === 0) {
+                showUploadError('No bookmarks found in the file. Please check the file format.');
+                return;
+            }
+            
+            // Store the bookmarks
+            bookmarks = parsedBookmarks;
+            categories = generateCategoriesFromBookmarks(parsedBookmarks);
+            
+            // Save to localStorage
+            saveBookmarksToStorage();
+            
+            // Show success and update UI
+            showUploadSuccess(parsedBookmarks.length);
+            
+            setTimeout(() => {
+                hideUploadModal();
+                renderCategoryTree();
+                updateBookmarkDisplay();
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error parsing bookmark file:', error);
+            showUploadError('Error parsing bookmark file. Please ensure it\'s a valid HTML bookmark export.');
+        }
+    };
+    
+    reader.onerror = function() {
+        showUploadError('Error reading file. Please try again.');
+    };
+    
+    reader.readAsText(file);
+}
+
+function parseBookmarkFile(htmlContent) {
+    // Create a temporary DOM parser
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    
+    const bookmarksList = [];
+    
+    // Find all bookmark links
+    const links = doc.querySelectorAll('a[href]');
+    
+    links.forEach(link => {
+        const url = link.getAttribute('href');
+        const title = link.textContent.trim();
+        
+        // Skip empty or invalid URLs
+        if (!url || !title || url.startsWith('javascript:')) {
+            return;
+        }
+        
+        // Get folder path from DOM structure
+        const category = extractCategoryFromElement(link);
+        
+        // Get additional attributes
+        const addDate = link.getAttribute('add_date');
+        const description = link.getAttribute('description') || '';
+        
+        const bookmark = {
+            title: title,
+            url: url,
+            description: description,
+            category: category || 'Uncategorized',
+            dateAdded: addDate ? new Date(parseInt(addDate) * 1000) : new Date(),
+            favicon: getFaviconUrl(url)
+        };
+        
+        bookmarksList.push(bookmark);
+    });
+    
+    return bookmarksList;
+}
+
+function extractCategoryFromElement(linkElement) {
+    const categoryPath = [];
+    let current = linkElement.parentElement;
+    
+    // Walk up the DOM tree to find folder structure
+    while (current && current !== document) {
+        // Look for dt elements that contain folder names
+        if (current.tagName === 'DT') {
+            const h3 = current.querySelector('h3');
+            if (h3 && h3.textContent.trim()) {
+                categoryPath.unshift(h3.textContent.trim());
+            }
+        }
+        
+        // Look for dl elements that represent folder contents
+        if (current.tagName === 'DL') {
+            const prevSibling = current.previousElementSibling;
+            if (prevSibling && prevSibling.tagName === 'DT') {
+                const h3 = prevSibling.querySelector('h3');
+                if (h3 && h3.textContent.trim()) {
+                    categoryPath.unshift(h3.textContent.trim());
+                }
+            }
+        }
+        
+        current = current.parentElement;
+    }
+    
+    // Remove common folder names and clean up
+    const cleanPath = categoryPath.filter(name => 
+        name !== 'Bookmarks bar' && 
+        name !== 'Bookmarks Menu' && 
+        name !== 'Other bookmarks' &&
+        name !== 'Favorites' &&
+        name.length > 0
+    );
+    
+    return cleanPath.length > 0 ? cleanPath.join(' / ') : 'Uncategorized';
+}
+
+function generateCategoriesFromBookmarks(bookmarksList) {
+    const categoryStructure = {};
+    
+    bookmarksList.forEach(bookmark => {
+        const categoryPath = bookmark.category.split(' / ');
+        let current = categoryStructure;
+        
+        // Build nested category structure
+        categoryPath.forEach((categoryName, index) => {
+            if (!current[categoryName]) {
+                current[categoryName] = {
+                    bookmarks: 0,
+                    children: {}
+                };
+            }
+            
+            // Count bookmarks at each level
+            if (index === categoryPath.length - 1) {
+                current[categoryName].bookmarks++;
+            }
+            
+            current = current[categoryName].children;
+        });
+    });
+    
+    return categoryStructure;
+}
+
+function showUploadSuccess(count) {
     const uploadArea = document.getElementById('upload-area');
     uploadArea.innerHTML = `
         <div class="upload-icon">✅</div>
-        <div class="upload-text">File uploaded successfully!</div>
-        <div class="upload-subtext">${file.name} (${Math.round(file.size / 1024)} KB)</div>
+        <div class="upload-text">Success!</div>
+        <div class="upload-subtext">Processed ${count} bookmarks</div>
     `;
-    
-    // Simulate processing delay
-    setTimeout(() => {
-        hideUploadModal();
-        alert('Bookmark file processed successfully! In a real app, this would trigger AI categorization.');
-    }, 2000);
+}
+
+function showUploadError(message) {
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.innerHTML = `
+        <div class="upload-icon">❌</div>
+        <div class="upload-text">Upload Error</div>
+        <div class="upload-subtext">${message}</div>
+        <button class="upload-button" onclick="resetUploadArea()" style="margin-top: 16px;">Try Again</button>
+    `;
 }
 
 function resetUploadArea() {

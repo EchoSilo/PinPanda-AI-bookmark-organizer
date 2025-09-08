@@ -62,6 +62,158 @@ function clearBookmarkStorage() {
     console.log('Bookmark storage cleared');
 }
 
+// AI Settings Storage
+function saveAISettings() {
+    const settings = {
+        aiEnabled: document.getElementById('ai-enabled')?.checked || false,
+        aiModel: document.getElementById('ai-model')?.value || 'gpt-4',
+        apiKey: document.getElementById('openai-api-key')?.value || '',
+        categorizationDepth: document.getElementById('categorization-depth')?.value || 'balanced'
+    };
+    
+    try {
+        localStorage.setItem('pinpanda_ai_settings', JSON.stringify(settings));
+        console.log('AI settings saved');
+    } catch (error) {
+        console.error('Error saving AI settings:', error);
+    }
+}
+
+function loadAISettings() {
+    try {
+        const savedSettings = localStorage.getItem('pinpanda_ai_settings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            
+            const aiEnabled = document.getElementById('ai-enabled');
+            const aiModel = document.getElementById('ai-model');
+            const apiKey = document.getElementById('openai-api-key');
+            const categorizationDepth = document.getElementById('categorization-depth');
+            
+            if (aiEnabled) aiEnabled.checked = settings.aiEnabled;
+            if (aiModel) aiModel.value = settings.aiModel;
+            if (apiKey) apiKey.value = settings.apiKey;
+            if (categorizationDepth) categorizationDepth.value = settings.categorizationDepth;
+            
+            console.log('AI settings loaded');
+            return settings;
+        }
+    } catch (error) {
+        console.error('Error loading AI settings:', error);
+    }
+    
+    return null;
+}
+
+// OpenAI Integration
+async function categorizeBookmarksWithAI(bookmarks) {
+    const settings = loadAISettings();
+    
+    if (!settings || !settings.aiEnabled || !settings.apiKey) {
+        console.log('AI categorization disabled or API key missing');
+        return generateCategoriesFromBookmarks(bookmarks);
+    }
+    
+    try {
+        console.log('Starting AI categorization for', bookmarks.length, 'bookmarks');
+        
+        // Process bookmarks in batches to avoid API limits
+        const batchSize = 20;
+        const batches = [];
+        
+        for (let i = 0; i < bookmarks.length; i += batchSize) {
+            batches.push(bookmarks.slice(i, i + batchSize));
+        }
+        
+        const categorizedBookmarks = [];
+        
+        for (const batch of batches) {
+            const result = await processBatchWithAI(batch, settings);
+            categorizedBookmarks.push(...result);
+        }
+        
+        // Update bookmark categories
+        categorizedBookmarks.forEach((aiBookmark, index) => {
+            if (bookmarks[index]) {
+                bookmarks[index].category = aiBookmark.category;
+            }
+        });
+        
+        // Generate category structure from AI-categorized bookmarks
+        return generateCategoriesFromBookmarks(bookmarks);
+        
+    } catch (error) {
+        console.error('AI categorization failed, falling back to default:', error);
+        return generateCategoriesFromBookmarks(bookmarks);
+    }
+}
+
+async function processBatchWithAI(bookmarks, settings) {
+    const prompt = createCategorizationPrompt(bookmarks, settings.categorizationDepth);
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`
+        },
+        body: JSON.stringify({
+            model: settings.aiModel === 'gpt-3.5' ? 'gpt-3.5-turbo' : 'gpt-4',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an expert at organizing bookmarks. Analyze each bookmark and assign it to an appropriate category. Return only a JSON array with the same number of items, each containing a "category" field.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 2000
+        })
+    });
+    
+    if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    try {
+        return JSON.parse(content);
+    } catch (parseError) {
+        console.error('Failed to parse AI response:', content);
+        throw new Error('Invalid AI response format');
+    }
+}
+
+function createCategorizationPrompt(bookmarks, depth) {
+    const depthInstructions = {
+        simple: 'Use broad, general categories (5-8 categories max). Examples: Work, Entertainment, Shopping, News, Social Media',
+        balanced: 'Use specific but not overly detailed categories (10-15 categories). Create logical groupings.',
+        detailed: 'Create detailed subcategories for precise organization (20+ categories). Use hierarchical structure with "/" separators.'
+    };
+    
+    const instruction = depthInstructions[depth] || depthInstructions.balanced;
+    
+    const bookmarkList = bookmarks.map((bookmark, index) => ({
+        index,
+        title: bookmark.title,
+        url: bookmark.url,
+        description: bookmark.description || ''
+    }));
+    
+    return `${instruction}
+
+Analyze these bookmarks and assign appropriate categories:
+
+${JSON.stringify(bookmarkList, null, 2)}
+
+Return a JSON array with the same number of items (${bookmarks.length}), each containing only a "category" field. For detailed categorization, use "/" to separate hierarchy levels (e.g., "Development/JavaScript/React").`;
+}
+
 // State Management
 let currentCategory = '';
 let currentView = 'grid';
@@ -87,6 +239,9 @@ const filterControls = document.getElementById('filter-controls');
 document.addEventListener('DOMContentLoaded', function() {
     // Load existing bookmarks from storage
     loadBookmarksFromStorage();
+    
+    // Load AI settings
+    loadAISettings();
     
     renderCategoryTree();
     updateBookmarkDisplay();
@@ -578,12 +733,23 @@ function handleSearch() {
     contextTitle.textContent = `Search Results`;
     renderBookmarks(filteredBookmarks);
     
-    // Simulate AI search if enabled
-    if (isAISearch) {
-        setTimeout(() => {
-            // In a real implementation, this would call the AI service
-            console.log('AI search enhanced results for:', searchQuery);
-        }, 500);
+    // Use AI search if enabled
+    if (isAISearch && searchQuery.trim()) {
+        performAISearch(searchQuery.trim())
+            .then(aiResults => {
+                currentBookmarks = aiResults;
+                updatePagination();
+                renderBookmarks();
+            })
+            .catch(error => {
+                console.error('AI search failed:', error);
+                // Fall back to regular search
+                const filtered = performRegularSearch(searchQuery);
+                currentBookmarks = sortBookmarks(filtered);
+                updatePagination();
+                renderBookmarks();
+            });
+        return;
     }
 }
 
@@ -591,9 +757,91 @@ function toggleSearchMode() {
     isAISearch = !isAISearch;
     searchToggle.classList.toggle('active', isAISearch);
     
+    // Update search placeholder
+    searchInput.placeholder = isAISearch ? 
+        'Ask AI about your bookmarks...' : 
+        'Search bookmarks...';
+    
     if (searchQuery) {
         updateBookmarkDisplay(); // Re-run search with new mode
     }
+}
+
+async function performAISearch(query) {
+    const settings = loadAISettings();
+    
+    if (!settings || !settings.aiEnabled || !settings.apiKey) {
+        console.log('AI search disabled or API key missing');
+        return performRegularSearch(query);
+    }
+    
+    try {
+        const relevantBookmarks = bookmarks.filter(bookmark => 
+            bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
+            bookmark.url.toLowerCase().includes(query.toLowerCase()) ||
+            (bookmark.description && bookmark.description.toLowerCase().includes(query.toLowerCase()))
+        );
+        
+        if (relevantBookmarks.length === 0) {
+            return [];
+        }
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${settings.apiKey}`
+            },
+            body: JSON.stringify({
+                model: settings.aiModel === 'gpt-3.5' ? 'gpt-3.5-turbo' : 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a helpful assistant that helps users find relevant bookmarks. Analyze the user query and return the most relevant bookmark indices from the provided list.'
+                    },
+                    {
+                        role: 'user',
+                        content: `User query: "${query}"
+
+Available bookmarks:
+${relevantBookmarks.map((bookmark, index) => `${index}: ${bookmark.title} - ${bookmark.url}`).join('\n')}
+
+Return only the indices of the most relevant bookmarks as a JSON array of numbers (e.g., [0, 2, 5]). Consider semantic meaning, not just keyword matching.`
+                    }
+                ],
+                temperature: 0.2,
+                max_tokens: 500
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`OpenAI API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const content = data.choices[0].message.content;
+        
+        try {
+            const indices = JSON.parse(content);
+            return indices.map(index => relevantBookmarks[index]).filter(Boolean);
+        } catch {
+            // Fall back to regular search if AI response is invalid
+            return relevantBookmarks.slice(0, 10);
+        }
+        
+    } catch (error) {
+        console.error('AI search failed:', error);
+        return performRegularSearch(query);
+    }
+}
+
+function performRegularSearch(query) {
+    return bookmarks.filter(bookmark => 
+        bookmark.title.toLowerCase().includes(query.toLowerCase()) ||
+        bookmark.url.toLowerCase().includes(query.toLowerCase()) ||
+        bookmark.category.toLowerCase().includes(query.toLowerCase()) ||
+        (bookmark.description && bookmark.description.toLowerCase().includes(query.toLowerCase()))
+    );
 }
 
 function updateFilterChips() {
@@ -817,13 +1065,47 @@ function processUploadedFile(file) {
             
             // Store the bookmarks
             bookmarks = parsedBookmarks;
-            categories = generateCategoriesFromBookmarks(parsedBookmarks);
+            
+            // Check if AI categorization is enabled
+            const aiSettings = loadAISettings();
+            if (aiSettings && aiSettings.aiEnabled && aiSettings.apiKey) {
+                showAIProcessing(parsedBookmarks.length);
+                
+                categorizeBookmarksWithAI(parsedBookmarks)
+                    .then(aiCategories => {
+                        categories = aiCategories;
+                        saveBookmarksToStorage();
+                        showUploadSuccess(parsedBookmarks.length, true);
+                        
+                        setTimeout(() => {
+                            hideUploadModal();
+                            renderCategoryTree();
+                            updateBookmarkDisplay();
+                        }, 2000);
+                    })
+                    .catch(error => {
+                        console.error('AI categorization failed:', error);
+                        categories = generateCategoriesFromBookmarks(parsedBookmarks);
+                        saveBookmarksToStorage();
+                        showUploadSuccess(parsedBookmarks.length, false);
+                        
+                        setTimeout(() => {
+                            hideUploadModal();
+                            renderCategoryTree();
+                            updateBookmarkDisplay();
+                        }, 2000);
+                    });
+                
+                return; // Exit early for AI processing
+            } else {
+                categories = generateCategoriesFromBookmarks(parsedBookmarks);
+            }
             
             // Save to localStorage
             saveBookmarksToStorage();
             
             // Show success and update UI
-            showUploadSuccess(parsedBookmarks.length);
+            showUploadSuccess(parsedBookmarks.length, false);
             
             setTimeout(() => {
                 hideUploadModal();
@@ -953,12 +1235,22 @@ function generateCategoriesFromBookmarks(bookmarksList) {
     return categoryStructure;
 }
 
-function showUploadSuccess(count) {
+function showAIProcessing(count) {
     const uploadArea = document.getElementById('upload-area');
+    uploadArea.innerHTML = `
+        <div class="upload-icon">🤖</div>
+        <div class="upload-text">AI is organizing your bookmarks...</div>
+        <div class="upload-subtext">Analyzing ${count} bookmarks with AI</div>
+    `;
+}
+
+function showUploadSuccess(count, withAI = false) {
+    const uploadArea = document.getElementById('upload-area');
+    const aiText = withAI ? ' with AI categorization' : '';
     uploadArea.innerHTML = `
         <div class="upload-icon">✅</div>
         <div class="upload-text">Success!</div>
-        <div class="upload-subtext">Processed ${count} bookmarks</div>
+        <div class="upload-subtext">Processed ${count} bookmarks${aiText}</div>
     `;
 }
 

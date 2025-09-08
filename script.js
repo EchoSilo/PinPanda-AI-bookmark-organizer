@@ -1,9 +1,4 @@
-// Extended Mock Data with dates
-function generateBookmarkDate() {
-    const start = new Date(2023, 0, 1);
-    const end = new Date();
-    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-}
+// Data Management Functions
 
 function getFaviconUrl(url) {
     try {
@@ -14,162 +9,10 @@ function getFaviconUrl(url) {
     }
 }
 
-// Mock Data
-const mockCategories = {
-    "Web Development": {
-        children: {
-            "React": { bookmarks: 15 },
-            "Vue.js": { bookmarks: 8 },
-            "Angular": { bookmarks: 6 },
-            "JavaScript": { bookmarks: 23 },
-            "CSS Frameworks": { bookmarks: 12 },
-            "Backend": {
-                children: {
-                    "Node.js": { bookmarks: 18 },
-                    "Python": { bookmarks: 14 },
-                    "API Design": { bookmarks: 9 }
-                }
-            }
-        }
-    },
-    "Design": {
-        children: {
-            "UI/UX": { bookmarks: 22 },
-            "Color Palettes": { bookmarks: 7 },
-            "Typography": { bookmarks: 11 },
-            "Design Systems": { bookmarks: 16 },
-            "Tools": {
-                children: {
-                    "Figma": { bookmarks: 13 },
-                    "Sketch": { bookmarks: 5 },
-                    "Adobe": { bookmarks: 8 }
-                }
-            }
-        }
-    },
-    "Productivity": {
-        children: {
-            "Task Management": { bookmarks: 9 },
-            "Note Taking": { bookmarks: 12 },
-            "Time Tracking": { bookmarks: 6 },
-            "Automation": { bookmarks: 14 }
-        }
-    },
-    "AI & Machine Learning": {
-        children: {
-            "ChatGPT Resources": { bookmarks: 19 },
-            "Machine Learning": { bookmarks: 24 },
-            "AI Tools": { bookmarks: 31 },
-            "Data Science": { bookmarks: 17 }
-        }
-    },
-    "News & Blogs": {
-        children: {
-            "Tech News": { bookmarks: 28 },
-            "Industry Blogs": { bookmarks: 15 },
-            "Newsletters": { bookmarks: 11 }
-        }
-    }
-};
+// Data Storage
+let categories = {};
 
-const mockBookmarks = [
-    {
-        title: "React Documentation",
-        url: "https://react.dev",
-        description: "The official React documentation with guides, API reference, and tutorials for building user interfaces.",
-        category: "Web Development / React",
-        dateAdded: new Date('2023-11-15'),
-        favicon: getFaviconUrl('https://react.dev')
-    },
-    {
-        title: "Figma - Collaborative Interface Design",
-        url: "https://figma.com",
-        description: "A collaborative interface design tool that helps teams create, prototype, and gather feedback.",
-        category: "Design / Tools / Figma",
-        dateAdded: new Date('2023-10-22'),
-        favicon: getFaviconUrl('https://figma.com')
-    },
-    {
-        title: "ChatGPT by OpenAI",
-        url: "https://chat.openai.com",
-        description: "AI-powered conversational assistant for answering questions, writing, and creative tasks.",
-        category: "AI & Machine Learning / ChatGPT Resources",
-        dateAdded: new Date('2023-12-01'),
-        favicon: getFaviconUrl('https://chat.openai.com')
-    },
-    {
-        title: "GitHub - Code Collaboration",
-        url: "https://github.com",
-        description: "Platform for version control, code collaboration, and project management for developers.",
-        category: "Web Development / JavaScript",
-        dateAdded: new Date('2023-09-15'),
-        favicon: getFaviconUrl('https://github.com')
-    },
-    {
-        title: "Notion - All-in-one Workspace",
-        url: "https://notion.so",
-        description: "Versatile workspace for notes, tasks, databases, and team collaboration.",
-        category: "Productivity / Note Taking",
-        dateAdded: new Date('2023-11-08'),
-        favicon: getFaviconUrl('https://notion.so')
-    },
-    {
-        title: "TechCrunch",
-        url: "https://techcrunch.com",
-        description: "Leading technology news website covering startups, gadgets, and tech industry trends.",
-        category: "News & Blogs / Tech News",
-        dateAdded: new Date('2023-10-12'),
-        favicon: getFaviconUrl('https://techcrunch.com')
-    },
-    {
-        title: "Tailwind CSS",
-        url: "https://tailwindcss.com",
-        description: "Utility-first CSS framework for rapidly building custom user interfaces.",
-        category: "Web Development / CSS Frameworks",
-        dateAdded: new Date('2023-11-20'),
-        favicon: getFaviconUrl('https://tailwindcss.com')
-    },
-    {
-        title: "Dribbble - Design Inspiration",
-        url: "https://dribbble.com",
-        description: "Community of designers sharing screenshots of their work, process, and projects.",
-        category: "Design / UI/UX",
-        dateAdded: new Date('2023-10-05'),
-        favicon: getFaviconUrl('https://dribbble.com')
-    },
-    {
-        title: "Jupyter Notebooks",
-        url: "https://jupyter.org",
-        description: "Web-based interactive development environment for data science and machine learning.",
-        category: "AI & Machine Learning / Data Science",
-        dateAdded: new Date('2023-09-28'),
-        favicon: getFaviconUrl('https://jupyter.org')
-    },
-    {
-        title: "Zapier - Automation Platform",
-        url: "https://zapier.com",
-        description: "Automation platform that connects your apps and automates workflows.",
-        category: "Productivity / Automation",
-        dateAdded: new Date('2023-11-12'),
-        favicon: getFaviconUrl('https://zapier.com')
-    },
-    {
-        title: "Vue.js Documentation",
-        url: "https://vuejs.org",
-        description: "Progressive JavaScript framework for building user interfaces and single-page applications.",
-        category: "Web Development / Vue.js",
-        dateAdded: new Date('2023-10-18'),
-        favicon: getFaviconUrl('https://vuejs.org')
-    },
-    {
-        title: "Material Design",
-        url: "https://material.io",
-        description: "Google's design system with guidelines, components, and tools for digital products.",
-        category: "Design / Design Systems",
-        dateAdded: new Date('2023-11-02'),
-        favicon: getFaviconUrl('https://material.io')
-    }
-];
+let bookmarks = [];
 
 // State Management
 let currentCategory = '';
@@ -195,7 +38,7 @@ const filterControls = document.getElementById('filter-controls');
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
     renderCategoryTree();
-    renderBookmarks(mockBookmarks);
+    renderBookmarks(bookmarks);
     setupEventListeners();
 });
 
@@ -224,11 +67,11 @@ function renderCategoryTree() {
     categoryTree.innerHTML = '';
     
     // Add "All Bookmarks" option
-    const allItem = createCategoryItem('All Bookmarks', mockBookmarks.length, '', true);
+    const allItem = createCategoryItem('All Bookmarks', bookmarks.length, '', true);
     categoryTree.appendChild(allItem);
     
     // Render categories
-    Object.entries(mockCategories).forEach(([name, data]) => {
+    Object.entries(categories).forEach(([name, data]) => {
         const item = createCategoryElement(name, data, 0);
         categoryTree.appendChild(item);
     });
@@ -330,10 +173,10 @@ function selectCategory(path, item) {
     // Update context
     if (path === '') {
         contextTitle.textContent = 'All Bookmarks';
-        renderBookmarks(mockBookmarks);
+        renderBookmarks(bookmarks);
     } else {
         contextTitle.textContent = path;
-        const filteredBookmarks = mockBookmarks.filter(bookmark => 
+        const filteredBookmarks = bookmarks.filter(bookmark => 
             bookmark.category.startsWith(path)
         );
         renderBookmarks(filteredBookmarks);
@@ -644,9 +487,9 @@ function handleSearch() {
     
     if (searchQuery === '') {
         if (currentCategory === '') {
-            renderBookmarks(mockBookmarks);
+            renderBookmarks(bookmarks);
         } else {
-            const filteredBookmarks = mockBookmarks.filter(bookmark => 
+            const filteredBookmarks = bookmarks.filter(bookmark => 
                 bookmark.category.startsWith(currentCategory)
             );
             renderBookmarks(filteredBookmarks);
@@ -660,7 +503,7 @@ function handleSearch() {
     updateFilterChips();
     
     // Filter bookmarks
-    let filteredBookmarks = mockBookmarks.filter(bookmark => {
+    let filteredBookmarks = bookmarks.filter(bookmark => {
         const searchLower = searchQuery.toLowerCase();
         return bookmark.title.toLowerCase().includes(searchLower) ||
                bookmark.description.toLowerCase().includes(searchLower) ||
@@ -840,7 +683,7 @@ function exportBookmarks(format) {
     console.log('Include descriptions:', includeDescriptions);
     
     // In a real application, this would generate and download the file
-    alert(`Exporting ${mockBookmarks.length} bookmarks as ${format.toUpperCase()} file...\n\nOptions:\n- Categories: ${includeCategories ? 'Included' : 'Excluded'}\n- Descriptions: ${includeDescriptions ? 'Included' : 'Excluded'}`);
+    alert(`Exporting ${bookmarks.length} bookmarks as ${format.toUpperCase()} file...\n\nOptions:\n- Categories: ${includeCategories ? 'Included' : 'Excluded'}\n- Descriptions: ${includeDescriptions ? 'Included' : 'Excluded'}`);
     
     hideExportModal();
 }

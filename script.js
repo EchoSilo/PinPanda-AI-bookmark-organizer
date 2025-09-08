@@ -984,7 +984,7 @@ function resetUploadArea() {
         <div class="upload-icon">📤</div>
         <div class="upload-text">Drag and drop your bookmark HTML file here</div>
         <div class="upload-subtext">Or click to browse files</div>
-        <button class="upload-button" onclick="(function(){ const fi = document.getElementById('file-input'); if(fi) fi.click(); })()">"
+        <button class="upload-button" onclick="(function(){ const fi = document.getElementById('file-input'); if(fi) fi.click(); })()">
             📁 Select File
         </button>
     `;

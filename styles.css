@@ -199,6 +199,18 @@ body {
     width: 60px;
 }
 
+.sidebar.collapsed .sidebar-header h3 {
+    display: none;
+}
+
+.sidebar.collapsed .category-tree {
+    display: none;
+}
+
+.sidebar.collapsed .collapse-btn {
+    transform: rotate(180deg);
+}
+
 .sidebar-header {
     padding: 16px 20px;
     border-bottom: 1px solid #e9ecef;

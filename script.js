@@ -95,22 +95,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Event Listeners
 function setupEventListeners() {
-    searchInput.addEventListener('input', handleSearch);
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            updateBookmarkDisplay();
-        }
-    });
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                updateBookmarkDisplay();
+            }
+        });
+    }
     
-    searchToggle.addEventListener('click', toggleSearchMode);
+    if (searchToggle) {
+        searchToggle.addEventListener('click', toggleSearchMode);
+    }
     
     // AI input handling
     const aiInput = document.getElementById('ai-input');
-    aiInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            sendAIMessage();
-        }
-    });
+    if (aiInput) {
+        aiInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendAIMessage();
+            }
+        });
+    }
 }
 
 // Render Category Tree
@@ -663,6 +669,8 @@ function closeAIPanel() {
 function sendAIMessage() {
     const aiInput = document.getElementById('ai-input');
     const aiChat = document.getElementById('ai-chat');
+    
+    if (!aiInput || !aiChat) return;
     const message = aiInput.value.trim();
     
     if (!message) return;

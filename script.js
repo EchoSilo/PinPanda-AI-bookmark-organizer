@@ -269,7 +269,26 @@ document.addEventListener('DOMContentLoaded', function() {
     renderCategoryTree();
     updateBookmarkDisplay();
     setupEventListeners();
+    
+    // Update reorganize button state
+    updateReorganizeButton();
 });
+
+function updateReorganizeButton() {
+    const reorganizeBtn = document.getElementById('reorganize-btn');
+    const aiSettings = loadAISettings();
+    
+    if (bookmarks.length === 0) {
+        reorganizeBtn.disabled = true;
+        reorganizeBtn.title = 'No bookmarks to reorganize';
+    } else if (!aiSettings || !aiSettings.aiEnabled || !aiSettings.apiKey) {
+        reorganizeBtn.disabled = true;
+        reorganizeBtn.title = 'Please configure AI settings first';
+    } else {
+        reorganizeBtn.disabled = false;
+        reorganizeBtn.title = 'Reorganize bookmarks with AI';
+    }
+}
 
 // Event Listeners
 function setupEventListeners() {
@@ -1003,6 +1022,178 @@ function hideSettingsModal() {
     document.getElementById('settings-modal').style.display = 'none';
 }
 
+// Reorganize Modal Functions
+function showReorganizeModal() {
+    if (bookmarks.length === 0) {
+        alert('No bookmarks to reorganize. Please upload some bookmarks first.');
+        return;
+    }
+    
+    // Check if AI is configured
+    const aiSettings = loadAISettings();
+    if (!aiSettings || !aiSettings.aiEnabled || !aiSettings.apiKey) {
+        alert('Please configure your AI settings first. Go to Settings > AI Settings to add your OpenAI API key.');
+        return;
+    }
+    
+    // Update bookmark count in modal
+    document.getElementById('bookmark-count-reorganize').textContent = bookmarks.length;
+    
+    // Show modal
+    document.getElementById('reorganize-modal').style.display = 'flex';
+}
+
+function hideReorganizeModal() {
+    document.getElementById('reorganize-modal').style.display = 'none';
+    
+    // Reset modal state
+    document.getElementById('reorganize-info').style.display = 'block';
+    document.getElementById('reorganize-progress').style.display = 'none';
+    document.getElementById('reorganize-confirm').style.display = 'inline-block';
+    document.getElementById('reorganize-cancel').textContent = 'Cancel';
+}
+
+let reorganizationSessionId = null;
+
+async function startReorganization() {
+    const aiSettings = loadAISettings();
+    if (!aiSettings || !aiSettings.apiKey) {
+        alert('API key not found. Please check your AI settings.');
+        return;
+    }
+    
+    const depth = document.getElementById('reorganize-depth').value;
+    
+    // Generate session ID
+    reorganizationSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    // Switch to progress view
+    document.querySelector('.reorganize-info').style.display = 'none';
+    document.getElementById('reorganize-progress').style.display = 'block';
+    document.getElementById('reorganize-confirm').style.display = 'none';
+    document.getElementById('reorganize-cancel').textContent = 'Close';
+    
+    try {
+        // Start reorganization
+        const response = await fetch('http://localhost:8000/api/reorganize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                bookmarks: bookmarks,
+                apiKey: aiSettings.apiKey,
+                model: aiSettings.aiModel || 'gpt-5-mini',
+                categorizationDepth: depth,
+                sessionId: reorganizationSessionId
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Reorganization started:', result);
+        
+        // Start polling for progress
+        pollReorganizationProgress();
+        
+    } catch (error) {
+        console.error('Error starting reorganization:', error);
+        showReorganizationError('Failed to start reorganization. Please check your connection and try again.');
+    }
+}
+
+async function pollReorganizationProgress() {
+    if (!reorganizationSessionId) return;
+    
+    try {
+        const response = await fetch(`http://localhost:8000/api/progress/${reorganizationSessionId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const progress = await response.json();
+        updateProgressDisplay(progress);
+        
+        if (progress.status === 'completed') {
+            await handleReorganizationComplete();
+        } else if (progress.status === 'error') {
+            showReorganizationError(progress.message);
+        } else {
+            // Continue polling
+            setTimeout(pollReorganizationProgress, 2000);
+        }
+        
+    } catch (error) {
+        console.error('Error polling progress:', error);
+        showReorganizationError('Lost connection to reorganization service.');
+    }
+}
+
+function updateProgressDisplay(progress) {
+    const progressFill = document.getElementById('reorganize-progress-fill');
+    const progressText = document.getElementById('reorganize-progress-text');
+    
+    progressFill.style.width = `${progress.progress}%`;
+    progressText.textContent = progress.message;
+    
+    console.log(`Progress: ${progress.progress}% - ${progress.message}`);
+}
+
+async function handleReorganizationComplete() {
+    try {
+        // Get the reorganized bookmarks
+        const response = await fetch(`http://localhost:8000/api/result/${reorganizationSessionId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Update local bookmarks with new categories
+        bookmarks = result.bookmarks;
+        
+        // Regenerate categories structure
+        categories = generateCategoriesFromBookmarks(bookmarks);
+        
+        // Save to localStorage
+        saveBookmarksToStorage();
+        
+        // Update UI
+        renderCategoryTree();
+        updateBookmarkDisplay();
+        
+        // Show success message
+        document.getElementById('reorganize-progress-text').textContent = 
+            `Successfully reorganized ${bookmarks.length} bookmarks!`;
+        
+        // Update button text
+        document.getElementById('reorganize-cancel').textContent = 'Done';
+        
+        console.log('Reorganization completed successfully');
+        
+    } catch (error) {
+        console.error('Error getting reorganization result:', error);
+        showReorganizationError('Failed to apply reorganization results.');
+    }
+}
+
+function showReorganizationError(message) {
+    const progressText = document.getElementById('reorganize-progress-text');
+    const progressIcon = document.querySelector('.reorganize-progress .progress-icon');
+    
+    progressIcon.textContent = '❌';
+    progressIcon.style.animation = 'none';
+    progressText.textContent = message;
+    progressText.style.color = '#dc2626';
+    
+    document.getElementById('reorganize-cancel').textContent = 'Close';
+}
+
 // Export functionality
 function exportBookmarks(format) {
     const includeCategories = document.getElementById('include-categories-export').checked;
@@ -1129,6 +1320,9 @@ function processUploadedFile(file) {
             
             // Show success and update UI
             showUploadSuccess(parsedBookmarks.length, false);
+            
+            // Update reorganize button state
+            updateReorganizeButton();
             
             setTimeout(() => {
                 hideUploadModal();

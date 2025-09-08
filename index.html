@@ -31,6 +31,9 @@
             
             <div class="header-right">
                 <button class="btn-secondary" onclick="showExportModal()">Export</button>
+                <button class="btn-ai" onclick="showReorganizeModal()" id="reorganize-btn" title="Reorganize bookmarks with AI">
+                    🤖 Reorganize with AI
+                </button>
                 <button class="btn-secondary" onclick="showSettingsModal()">⚙️ Settings</button>
                 <button class="btn-primary" onclick="showUploadModal()">+ Upload</button>
                 <button class="ai-toggle" onclick="toggleAIPanel()">💬 AI Assistant</button>
@@ -372,6 +375,57 @@
             
             <div class="modal-footer">
                 <button class="btn-cancel" onclick="hideUploadModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reorganize Modal -->
+    <div id="reorganize-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Reorganize Bookmarks with AI</h3>
+                <button class="modal-close" onclick="hideReorganizeModal()">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="reorganize-info">
+                    <div class="reorganize-icon">🤖</div>
+                    <h4>AI will analyze and reorganize your bookmarks</h4>
+                    <p>This will:</p>
+                    <ul>
+                        <li>Analyze all <span id="bookmark-count-reorganize">0</span> bookmarks</li>
+                        <li>Create intelligent categories based on content</li>
+                        <li>Preserve your bookmark data and links</li>
+                        <li>Replace existing categories with AI-generated ones</li>
+                    </ul>
+                    
+                    <div class="reorganize-settings">
+                        <label for="reorganize-depth">Categorization Style:</label>
+                        <select id="reorganize-depth" class="form-select">
+                            <option value="simple">Simple (Few broad categories)</option>
+                            <option value="balanced" selected>Balanced (Moderate detail)</option>
+                            <option value="detailed">Detailed (Many specific categories)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="reorganize-warning">
+                        <strong>Note:</strong> This will replace your current bookmark organization. The process may take a few minutes for large collections.
+                    </div>
+                </div>
+                
+                <div class="reorganize-progress" id="reorganize-progress" style="display: none;">
+                    <div class="progress-icon">⏳</div>
+                    <h4>Reorganizing your bookmarks...</h4>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="reorganize-progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="reorganize-progress-text">Preparing...</div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="hideReorganizeModal()" id="reorganize-cancel">Cancel</button>
+                <button class="btn-ai" onclick="startReorganization()" id="reorganize-confirm">Start Reorganization</button>
             </div>
         </div>
     </div>

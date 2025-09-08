@@ -178,6 +178,121 @@ body {
     background-color: #0056b3;
 }
 
+.btn-ai {
+    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-ai:hover {
+    background: linear-gradient(135deg, #7c3aed, #9333ea);
+    transform: translateY(-1px);
+}
+
+.btn-ai:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.reorganize-info {
+    text-align: center;
+    padding: 20px;
+}
+
+.reorganize-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.reorganize-info h4 {
+    color: #333;
+    margin-bottom: 16px;
+}
+
+.reorganize-info ul {
+    text-align: left;
+    max-width: 400px;
+    margin: 20px auto;
+    padding-left: 20px;
+}
+
+.reorganize-info li {
+    margin-bottom: 8px;
+    color: #666;
+}
+
+.reorganize-settings {
+    margin: 20px 0;
+}
+
+.reorganize-settings label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.reorganize-warning {
+    background: #fef3cd;
+    border: 1px solid #fbbf24;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 20px;
+    color: #92400e;
+    font-size: 14px;
+}
+
+.reorganize-progress {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.progress-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.reorganize-progress h4 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    color: #666;
+    font-size: 14px;
+}
+
 /* Main Content */
 .main-content {
     flex: 1;

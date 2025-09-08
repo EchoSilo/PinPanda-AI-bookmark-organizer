@@ -38,7 +38,7 @@ const filterControls = document.getElementById('filter-controls');
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
     renderCategoryTree();
-    renderBookmarks(bookmarks);
+    updateBookmarkDisplay();
     setupEventListeners();
 });
 
@@ -47,7 +47,7 @@ function setupEventListeners() {
     searchInput.addEventListener('input', handleSearch);
     searchInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            handleSearch();
+            updateBookmarkDisplay();
         }
     });
     
@@ -535,7 +535,7 @@ function toggleSearchMode() {
     searchToggle.classList.toggle('active', isAISearch);
     
     if (searchQuery) {
-        handleSearch(); // Re-run search with new mode
+        updateBookmarkDisplay(); // Re-run search with new mode
     }
 }
 
@@ -563,7 +563,7 @@ function updateFilterChips() {
 function clearSearch() {
     searchInput.value = '';
     searchQuery = '';
-    handleSearch();
+    updateBookmarkDisplay();
 }
 
 // View Controls
@@ -852,3 +852,59 @@ window.addEventListener('click', function(e) {
         hideSettingsModal();
     }
 });
+// Empty State Management
+function updateBookmarkDisplay() {
+    if (bookmarks.length === 0) {
+        showEmptyBookmarkState();
+        updateContextInfo('All Bookmarks', 0);
+        return;
+    }
+    
+    let filteredBookmarks = bookmarks;
+    
+    // Apply search filter
+    if (searchQuery) {
+        filteredBookmarks = bookmarks.filter(bookmark => {
+            const searchLower = searchQuery.toLowerCase();
+            return bookmark.title.toLowerCase().includes(searchLower) ||
+                   bookmark.description.toLowerCase().includes(searchLower) ||
+                   bookmark.category.toLowerCase().includes(searchLower);
+        });
+    }
+    
+    // Apply category filter
+    if (currentCategory && currentCategory !== '') {
+        filteredBookmarks = filteredBookmarks.filter(bookmark => 
+            bookmark.category.startsWith(currentCategory)
+        );
+    }
+    
+    currentBookmarks = filteredBookmarks;
+    renderBookmarks(filteredBookmarks);
+    
+    const categoryName = currentCategory || 'All Bookmarks';
+    updateContextInfo(categoryName, filteredBookmarks.length);
+}
+
+function showEmptyBookmarkState() {
+    bookmarksContainer.innerHTML = `
+        <div class="bookmarks-empty-state">
+            <div class="empty-icon">📚</div>
+            <h3>No bookmarks yet</h3>
+            <p>Upload your browser bookmarks to get started with AI-powered organization and intelligent categorization.</p>
+            <div class="empty-state-actions">
+                <button class="btn-primary" onclick="showUploadModal()">📤 Upload Bookmarks</button>
+                <button class="btn-secondary" onclick="showHelpInfo()">❓ How to export bookmarks</button>
+            </div>
+        </div>
+    `;
+}
+
+function showHelpInfo() {
+    alert('To export bookmarks from your browser:\n\n1. Chrome/Edge: Go to Bookmarks → Bookmark Manager → ⋮ → Export bookmarks\n2. Firefox: Go to Bookmarks → Manage Bookmarks → Import and Backup → Export\n3. Safari: Go to File → Export Bookmarks\n\nThen upload the exported HTML file here!');
+}
+
+function updateContextInfo(title, count) {
+    if (contextTitle) contextTitle.textContent = title;
+    if (bookmarkCount) bookmarkCount.textContent = `${count} bookmark${count !== 1 ? 's' : ''}`;
+}

@@ -100,11 +100,63 @@
     <!-- Modals -->
     <div id="export-modal" class="modal" style="display: none;">
         <div class="modal-content">
-            <h3>Export Bookmarks</h3>
-            <p>Choose export format:</p>
-            <button class="btn-primary">Export as HTML</button>
-            <button class="btn-secondary">Export as JSON</button>
-            <button class="btn-secondary" onclick="hideExportModal()">Cancel</button>
+            <div class="modal-header">
+                <h3 class="modal-title">Export Bookmarks</h3>
+                <button class="modal-close" onclick="hideExportModal()">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="export-options">
+                    <div class="export-option">
+                        <div class="export-info">
+                            <h4>HTML Bookmarks</h4>
+                            <p>Export as standard bookmark file compatible with all browsers</p>
+                        </div>
+                        <button class="btn-primary" onclick="exportBookmarks('html')">📄 Export HTML</button>
+                    </div>
+                    <div class="export-option">
+                        <div class="export-info">
+                            <h4>JSON Data</h4>
+                            <p>Export raw bookmark data with categories and metadata</p>
+                        </div>
+                        <button class="btn-secondary" onclick="exportBookmarks('json')">📊 Export JSON</button>
+                    </div>
+                    <div class="export-option">
+                        <div class="export-info">
+                            <h4>CSV Spreadsheet</h4>
+                            <p>Export as spreadsheet for analysis and reporting</p>
+                        </div>
+                        <button class="btn-secondary" onclick="exportBookmarks('csv')">📈 Export CSV</button>
+                    </div>
+                </div>
+                
+                <div class="export-settings">
+                    <div class="form-toggle-group">
+                        <div class="toggle-info">
+                            <label for="include-categories-export">Include Categories</label>
+                            <p class="form-description">Include AI-generated categories in export</p>
+                        </div>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="include-categories-export" checked>
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </div>
+                    <div class="form-toggle-group">
+                        <div class="toggle-info">
+                            <label for="include-descriptions-export">Include Descriptions</label>
+                            <p class="form-description">Include bookmark descriptions and metadata</p>
+                        </div>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="include-descriptions-export" checked>
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="hideExportModal()">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -126,9 +178,6 @@
                         </button>
                         <button class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">
                             AI Settings
-                        </button>
-                        <button class="settings-tab" data-tab="export" onclick="switchSettingsTab('export')">
-                            Export
                         </button>
                     </nav>
                 </div>
@@ -241,44 +290,6 @@
                         </div>
                     </div>
                     
-                    <!-- Export Tab -->
-                    <div id="export-tab" class="settings-tab-content">
-                        <h3 class="settings-section-title">Export Settings</h3>
-                        <div class="settings-form">
-                            <div class="form-group">
-                                <label>Export Format</label>
-                                <div class="export-options">
-                                    <div class="export-option">
-                                        <h4>HTML Bookmarks</h4>
-                                        <p>Export as standard bookmark file compatible with all browsers</p>
-                                        <button class="btn-primary">📄 Export HTML</button>
-                                    </div>
-                                    <div class="export-option">
-                                        <h4>JSON Data</h4>
-                                        <p>Export raw bookmark data with categories and metadata</p>
-                                        <button class="btn-secondary">📊 Export JSON</button>
-                                    </div>
-                                    <div class="export-option">
-                                        <h4>CSV Spreadsheet</h4>
-                                        <p>Export as spreadsheet for analysis and reporting</p>
-                                        <button class="btn-secondary">📈 Export CSV</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <div class="form-toggle-group">
-                                    <div class="toggle-info">
-                                        <label for="include-categories">Include Categories</label>
-                                        <p class="form-description">Include AI-generated categories in export</p>
-                                    </div>
-                                    <div class="toggle-switch">
-                                        <input type="checkbox" id="include-categories" checked>
-                                        <span class="toggle-slider"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

@@ -1160,6 +1160,7 @@ input:checked + .toggle-slider:before {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    margin-bottom: 24px;
 }
 
 .export-option {
@@ -1169,6 +1170,15 @@ input:checked + .toggle-slider:before {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: border-color 0.2s;
+}
+
+.export-option:hover {
+    border-color: #adb5bd;
+}
+
+.export-info {
+    flex: 1;
 }
 
 .export-option h4 {
@@ -1187,6 +1197,14 @@ input:checked + .toggle-slider:before {
 .export-option button {
     flex-shrink: 0;
     margin-left: 16px;
+}
+
+.export-settings {
+    border-top: 1px solid #e9ecef;
+    padding-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 /* Mobile responsive for settings */
@@ -1230,6 +1248,10 @@ input:checked + .toggle-slider:before {
     .export-option button {
         margin-left: 0;
         align-self: stretch;
+    }
+    
+    .export-settings {
+        gap: 20px;
     }
 }
 

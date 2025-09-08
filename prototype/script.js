@@ -830,6 +830,21 @@ function hideSettingsModal() {
     document.getElementById('settings-modal').style.display = 'none';
 }
 
+// Export functionality
+function exportBookmarks(format) {
+    const includeCategories = document.getElementById('include-categories-export').checked;
+    const includeDescriptions = document.getElementById('include-descriptions-export').checked;
+    
+    console.log(`Exporting bookmarks as ${format.toUpperCase()}`);
+    console.log('Include categories:', includeCategories);
+    console.log('Include descriptions:', includeDescriptions);
+    
+    // In a real application, this would generate and download the file
+    alert(`Exporting ${mockBookmarks.length} bookmarks as ${format.toUpperCase()} file...\n\nOptions:\n- Categories: ${includeCategories ? 'Included' : 'Excluded'}\n- Descriptions: ${includeDescriptions ? 'Included' : 'Excluded'}`);
+    
+    hideExportModal();
+}
+
 function hideUploadModal() {
     document.getElementById('upload-modal').style.display = 'none';
     resetUploadArea();

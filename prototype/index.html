@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PinPanda Integrated Bookmark Manager - Prototype</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    🐼 PinPanda
+                </div>
+                <div class="context-info">
+                    <span id="context-title">All Bookmarks</span>
+                    <span id="bookmark-count">(247 bookmarks)</span>
+                </div>
+            </div>
+            
+            <div class="header-center">
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Search bookmarks..." />
+                    <button id="search-toggle" class="search-mode-toggle" title="Toggle AI Search">
+                        🤖
+                    </button>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <button class="btn-secondary" onclick="showExportModal()">Export</button>
+                <button class="btn-primary" onclick="showUploadModal()">+ Upload</button>
+                <button class="ai-toggle" onclick="toggleAIPanel()">💬 AI Assistant</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Categories</h3>
+                    <button class="collapse-btn" onclick="toggleSidebar()">‹</button>
+                </div>
+                
+                <div class="category-tree" id="category-tree">
+                    <!-- Categories will be populated by JavaScript -->
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <main class="content-area">
+                <div class="content-header">
+                    <div class="view-controls">
+                        <button class="view-btn active" onclick="setView('grid')">⊞ Grid</button>
+                        <button class="view-btn" onclick="setView('list')">≡ List</button>
+                    </div>
+                    
+                    <div class="filter-controls" id="filter-controls" style="display: none;">
+                        <span>Filters:</span>
+                        <button class="filter-chip">Recent ×</button>
+                        <button class="filter-chip">AI Search ×</button>
+                    </div>
+                </div>
+                
+                <div class="bookmarks-container" id="bookmarks-container">
+                    <!-- Bookmarks will be populated by JavaScript -->
+                </div>
+            </main>
+        </div>
+
+        <!-- AI Assistant Panel -->
+        <div class="ai-panel" id="ai-panel">
+            <div class="ai-header">
+                <h3>🤖 AI Assistant</h3>
+                <button class="close-btn" onclick="toggleAIPanel()">×</button>
+            </div>
+            
+            <div class="ai-chat" id="ai-chat">
+                <div class="ai-message">
+                    <div class="message bot-message">
+                        👋 Hi! I can help you find bookmarks, organize categories, or answer questions about your collection. Try asking me something like "Find all my React development bookmarks" or "What productivity tools do I have saved?"
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ai-input-container">
+                <input type="text" id="ai-input" placeholder="Ask about your bookmarks..." />
+                <button onclick="sendAIMessage()">Send</button>
+            </div>
+        </div>
+
+        <!-- Backdrop for mobile -->
+        <div class="backdrop" id="backdrop" onclick="closeAllPanels()"></div>
+    </div>
+
+    <!-- Modals -->
+    <div id="export-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Export Bookmarks</h3>
+            <p>Choose export format:</p>
+            <button class="btn-primary">Export as HTML</button>
+            <button class="btn-secondary">Export as JSON</button>
+            <button class="btn-secondary" onclick="hideExportModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="upload-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Upload New Bookmarks</h3>
+            <div class="upload-area">
+                <p>Drop your bookmark file here or click to browse</p>
+                <button class="btn-primary">Choose File</button>
+            </div>
+            <button class="btn-secondary" onclick="hideUploadModal()">Cancel</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

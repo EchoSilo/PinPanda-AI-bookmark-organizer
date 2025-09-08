@@ -824,10 +824,84 @@ function showUploadModal() {
 
 function hideUploadModal() {
     document.getElementById('upload-modal').style.display = 'none';
+    resetUploadArea();
 }
 
 function closeAllPanels() {
     closeAIPanel();
+}
+
+// File Upload Handling
+function handleFileDrop(event) {
+    event.preventDefault();
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.classList.remove('dragover');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        processUploadedFile(files[0]);
+    }
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.classList.add('dragover');
+}
+
+function handleDragLeave(event) {
+    event.preventDefault();
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.classList.remove('dragover');
+}
+
+function handleFileSelect(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
+        processUploadedFile(files[0]);
+    }
+}
+
+function processUploadedFile(file) {
+    if (!file.name.toLowerCase().endsWith('.html') && !file.name.toLowerCase().endsWith('.htm')) {
+        alert('Please select an HTML bookmark file.');
+        return;
+    }
+    
+    console.log('Processing file:', file.name);
+    
+    // In a real application, this would process the file
+    // For the prototype, we'll just show a success message
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.innerHTML = `
+        <div class="upload-icon">✅</div>
+        <div class="upload-text">File uploaded successfully!</div>
+        <div class="upload-subtext">${file.name} (${Math.round(file.size / 1024)} KB)</div>
+    `;
+    
+    // Simulate processing delay
+    setTimeout(() => {
+        hideUploadModal();
+        alert('Bookmark file processed successfully! In a real app, this would trigger AI categorization.');
+    }, 2000);
+}
+
+function resetUploadArea() {
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    
+    uploadArea.classList.remove('dragover');
+    fileInput.value = '';
+    
+    uploadArea.innerHTML = `
+        <input type="file" id="file-input" class="hidden-file-input" accept=".html,.htm" onchange="handleFileSelect(event)">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">Drag and drop your bookmark HTML file here</div>
+        <div class="upload-subtext">Or click to browse files</div>
+        <button class="upload-button" onclick="document.getElementById('file-input').click()">
+            📁 Select File
+        </button>
+    `;
 }
 
 // Responsive handling
@@ -835,6 +909,16 @@ window.addEventListener('resize', function() {
     if (window.innerWidth > 768) {
         const backdrop = document.getElementById('backdrop');
         backdrop.classList.remove('show');
+    }
+});
+
+// Make upload area clickable
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('upload-area');
+    if (uploadArea) {
+        uploadArea.addEventListener('click', function() {
+            document.getElementById('file-input').click();
+        });
     }
 });
 

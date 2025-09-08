@@ -147,6 +147,22 @@ body {
     border-color: #adb5bd;
 }
 
+.btn-cancel {
+    background-color: transparent;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+}
+
 .ai-toggle {
     background-color: #007bff;
     color: white;
@@ -692,12 +708,55 @@ body {
 
 .modal-content {
     background: white;
-    border-radius: 8px;
-    padding: 24px;
-    max-width: 500px;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 480px;
     width: 90%;
     max-height: 80vh;
-    overflow-y: auto;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+    background-color: #f8f9fa;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
 }
 
 .upload-area {
@@ -706,11 +765,141 @@ body {
     padding: 40px;
     text-align: center;
     margin: 16px 0;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
 }
 
 .upload-area:hover {
     border-color: #28a745;
+    background-color: #f8f9fa;
+}
+
+.upload-area.dragover {
+    border-color: #28a745;
+    background-color: #e8f5e8;
+}
+
+.upload-icon {
+    font-size: 32px;
+    color: #6c757d;
+    margin-bottom: 16px;
+}
+
+.upload-text {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.upload-subtext {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 20px;
+}
+
+.upload-button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.upload-button:hover {
+    background-color: #218838;
+}
+
+.browser-support {
+    margin: 24px 0;
+}
+
+.browser-support-title {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.browser-list {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.browser-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.browser-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.browser-chrome { background-color: #4285f4; color: white; }
+.browser-firefox { background-color: #ff9500; color: white; }
+.browser-safari { background-color: #006cff; color: white; }
+.browser-edge { background-color: #0078d4; color: white; }
+
+.browser-name {
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.help-section {
+    background-color: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 24px 0;
+}
+
+.help-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.help-icon {
+    color: #1976d2;
+    font-size: 16px;
+}
+
+.help-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1976d2;
+    margin: 0;
+}
+
+.help-text {
+    font-size: 13px;
+    color: #424242;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.hidden-file-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* Pagination */

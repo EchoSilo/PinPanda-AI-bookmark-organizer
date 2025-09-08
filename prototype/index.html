@@ -109,12 +109,58 @@
 
     <div id="upload-modal" class="modal" style="display: none;">
         <div class="modal-content">
-            <h3>Upload New Bookmarks</h3>
-            <div class="upload-area">
-                <p>Drop your bookmark file here or click to browse</p>
-                <button class="btn-primary">Choose File</button>
+            <div class="modal-header">
+                <h3 class="modal-title">Upload Bookmarks</h3>
+                <button class="modal-close" onclick="hideUploadModal()">×</button>
             </div>
-            <button class="btn-secondary" onclick="hideUploadModal()">Cancel</button>
+            
+            <div class="modal-body">
+                <div class="upload-area" id="upload-area" ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                    <input type="file" id="file-input" class="hidden-file-input" accept=".html,.htm" onchange="handleFileSelect(event)">
+                    <div class="upload-icon">📤</div>
+                    <div class="upload-text">Drag and drop your bookmark HTML file here</div>
+                    <div class="upload-subtext">Or click to browse files</div>
+                    <button class="upload-button" onclick="document.getElementById('file-input').click()">
+                        📁 Select File
+                    </button>
+                </div>
+                
+                <div class="browser-support">
+                    <div class="browser-support-title">Supported browsers:</div>
+                    <div class="browser-list">
+                        <div class="browser-item">
+                            <div class="browser-icon browser-chrome">🌐</div>
+                            <div class="browser-name">Chrome</div>
+                        </div>
+                        <div class="browser-item">
+                            <div class="browser-icon browser-firefox">🦊</div>
+                            <div class="browser-name">Firefox</div>
+                        </div>
+                        <div class="browser-item">
+                            <div class="browser-icon browser-safari">🧭</div>
+                            <div class="browser-name">Safari</div>
+                        </div>
+                        <div class="browser-item">
+                            <div class="browser-icon browser-edge">🌊</div>
+                            <div class="browser-name">Edge</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <div class="help-header">
+                        <span class="help-icon">ℹ️</span>
+                        <h4 class="help-title">How to export your bookmarks</h4>
+                    </div>
+                    <p class="help-text">
+                        In most browsers, go to Bookmarks > Bookmark Manager > Export Bookmarks. The exported file is what you'll upload here.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="hideUploadModal()">Cancel</button>
+            </div>
         </div>
     </div>
 

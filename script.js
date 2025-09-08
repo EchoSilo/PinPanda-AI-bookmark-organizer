@@ -66,7 +66,7 @@ function clearBookmarkStorage() {
 function saveAISettings() {
     const settings = {
         aiEnabled: document.getElementById('ai-enabled')?.checked || false,
-        aiModel: document.getElementById('ai-model')?.value || 'gpt-4',
+        aiModel: document.getElementById('ai-model')?.value || 'gpt-5-mini',
         apiKey: document.getElementById('openai-api-key')?.value || '',
         categorizationDepth: document.getElementById('categorization-depth')?.value || 'balanced'
     };
@@ -162,7 +162,7 @@ async function processBatchWithAI(bookmarks, settings) {
             'Authorization': `Bearer ${settings.apiKey}`
         },
         body: JSON.stringify({
-            model: settings.aiModel === 'gpt-3.5' ? 'gpt-3.5-turbo' : 'gpt-4',
+            model: getModelName(settings.aiModel),
             messages: [
                 {
                     role: 'system',
@@ -216,6 +216,25 @@ Analyze these bookmarks and assign appropriate categories:
 ${JSON.stringify(bookmarkList, null, 2)}
 
 Return a JSON array with the same number of items (${bookmarks.length}), each containing only a "category" field. For detailed categorization, use "/" to separate hierarchy levels (e.g., "Development/JavaScript/React").`;
+}
+
+function getModelName(selectedModel) {
+    // Map UI model names to actual OpenAI API model names
+    const modelMap = {
+        'gpt-5': 'gpt-5',
+        'gpt-5-mini': 'gpt-5-mini',
+        'gpt-5-nano': 'gpt-5-nano',
+        'o3-mini': 'o3-mini',
+        'gpt-4o': 'gpt-4o',
+        'gpt-4o-mini': 'gpt-4o-mini',
+        'gpt-4.1': 'gpt-4.1',
+        'gpt-3.5-turbo': 'gpt-3.5-turbo',
+        // Legacy mappings for backward compatibility
+        'gpt-3.5': 'gpt-3.5-turbo',
+        'gpt-4': 'gpt-4o'
+    };
+    
+    return modelMap[selectedModel] || 'gpt-5-mini';
 }
 
 // State Management
@@ -797,7 +816,7 @@ async function performAISearch(query) {
                 'Authorization': `Bearer ${settings.apiKey}`
             },
             body: JSON.stringify({
-                model: settings.aiModel === 'gpt-3.5' ? 'gpt-3.5-turbo' : 'gpt-4',
+                model: getModelName(settings.aiModel),
                 messages: [
                     {
                         role: 'system',

@@ -274,10 +274,24 @@
                             <div class="form-group">
                                 <label for="ai-model">AI Model</label>
                                 <select id="ai-model" class="form-select">
-                                    <option value="gpt-3.5">GPT-3.5 (Faster)</option>
-                                    <option value="gpt-4" selected>GPT-4 (More Accurate)</option>
+                                    <optgroup label="GPT-5 Series (Latest)">
+                                        <option value="gpt-5">GPT-5 (Most Advanced)</option>
+                                        <option value="gpt-5-mini" selected>GPT-5 Mini (Balanced)</option>
+                                        <option value="gpt-5-nano">GPT-5 Nano (Fastest)</option>
+                                    </optgroup>
+                                    <optgroup label="Reasoning Models">
+                                        <option value="o3-mini">o3-mini (Deep Reasoning)</option>
+                                    </optgroup>
+                                    <optgroup label="GPT-4 Series">
+                                        <option value="gpt-4o">GPT-4o (Multimodal)</option>
+                                        <option value="gpt-4o-mini">GPT-4o Mini (Cost-Effective)</option>
+                                        <option value="gpt-4.1">GPT-4.1 (Coding Specialist)</option>
+                                    </optgroup>
+                                    <optgroup label="Legacy">
+                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
+                                    </optgroup>
                                 </select>
-                                <p class="form-description">GPT-4 provides more accurate categorization but may be slower</p>
+                                <p class="form-description">GPT-5 Mini offers the best balance of performance and cost for bookmark categorization</p>
                             </div>
                             <div class="form-group">
                                 <label for="openai-api-key">OpenAI API Key</label>

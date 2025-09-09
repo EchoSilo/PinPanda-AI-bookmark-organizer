@@ -62,6 +62,46 @@ function clearBookmarkStorage() {
     console.log('Bookmark storage cleared');
 }
 
+// Backend URL utilities
+function getBackendUrl() {
+    // In Replit, use the same host but different port pattern
+    if (window.location.hostname.includes('.replit.dev') || window.location.hostname.includes('.repl.co')) {
+        // Replit environment - construct the backend URL
+        const hostParts = window.location.hostname.split('.');
+        if (hostParts.length >= 3) {
+            // Replace port in the subdomain for Replit
+            const baseHost = hostParts.slice(1).join('.');
+            return `${window.location.protocol}//${hostParts[0]}-8000.${baseHost}`;
+        }
+    }
+    
+    // Fallback for local development
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+}
+
+async function testBackendConnection() {
+    const backendUrl = getBackendUrl();
+    try {
+        console.log('Testing backend connection to:', backendUrl);
+        const response = await fetch(`${backendUrl}/api/health`, {
+            method: 'GET',
+            timeout: 5000
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Backend connection successful:', data);
+            return { connected: true, url: backendUrl, status: data };
+        } else {
+            console.error('❌ Backend connection failed:', response.status);
+            return { connected: false, url: backendUrl, error: `HTTP ${response.status}` };
+        }
+    } catch (error) {
+        console.error('❌ Backend connection error:', error);
+        return { connected: false, url: backendUrl, error: error.message };
+    }
+}
+
 // AI Settings Storage
 function saveAISettings() {
     const settings = {
@@ -272,6 +312,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update reorganize button state
     updateReorganizeButton();
+    
+    // Test backend connection and update indicator
+    updateAIStatusIndicator('testing');
+    testBackendConnection().then(result => {
+        if (result.connected) {
+            console.log('✅ AI backend ready for reorganization');
+            updateAIStatusIndicator('connected');
+        } else {
+            console.warn('⚠️ AI backend not available:', result.error);
+            updateAIStatusIndicator('disconnected');
+        }
+    });
 });
 
 function updateReorganizeButton() {
@@ -287,6 +339,35 @@ function updateReorganizeButton() {
     } else {
         reorganizeBtn.disabled = false;
         reorganizeBtn.title = 'Reorganize bookmarks with AI';
+    }
+}
+
+function updateAIStatusIndicator(status) {
+    const indicator = document.getElementById('ai-status-indicator');
+    if (!indicator) return;
+    
+    // Remove all status classes
+    indicator.classList.remove('connected', 'disconnected', 'testing');
+    
+    switch (status) {
+        case 'connected':
+            indicator.textContent = '✅';
+            indicator.classList.add('connected');
+            indicator.title = 'AI service connected';
+            break;
+        case 'disconnected':
+            indicator.textContent = '❌';
+            indicator.classList.add('disconnected');
+            indicator.title = 'AI service not available';
+            break;
+        case 'testing':
+            indicator.textContent = '⏳';
+            indicator.classList.add('testing');
+            indicator.title = 'Testing AI service connection...';
+            break;
+        default:
+            indicator.textContent = '⚡';
+            indicator.title = 'AI service status unknown';
     }
 }
 
@@ -1084,8 +1165,17 @@ async function startReorganization() {
     if (reorganizeCancel) reorganizeCancel.textContent = 'Close';
     
     try {
+        // Test connection first
+        const connectionTest = await testBackendConnection();
+        if (!connectionTest.connected) {
+            throw new Error(`Backend not available: ${connectionTest.error}`);
+        }
+        
+        const backendUrl = getBackendUrl();
+        console.log('Starting reorganization with backend:', backendUrl);
+        
         // Start reorganization
-        const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8000/api/reorganize`, {
+        const response = await fetch(`${backendUrl}/api/reorganize`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1111,7 +1201,17 @@ async function startReorganization() {
         
     } catch (error) {
         console.error('Error starting reorganization:', error);
-        showReorganizationError('Failed to start reorganization. Please check your connection and try again.');
+        let errorMessage = 'Failed to start reorganization.';
+        
+        if (error.message.includes('Backend not available')) {
+            errorMessage = 'AI service is not available. Please try again in a moment.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Connection to AI service failed. Please check your internet connection.';
+        } else if (error.message.includes('API key')) {
+            errorMessage = 'Invalid API key. Please check your OpenAI settings.';
+        }
+        
+        showReorganizationError(errorMessage);
     }
 }
 
@@ -1119,7 +1219,8 @@ async function pollReorganizationProgress() {
     if (!reorganizationSessionId) return;
     
     try {
-        const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8000/api/progress/${reorganizationSessionId}`);
+        const backendUrl = getBackendUrl();
+        const response = await fetch(`${backendUrl}/api/progress/${reorganizationSessionId}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1156,7 +1257,8 @@ function updateProgressDisplay(progress) {
 async function handleReorganizationComplete() {
     try {
         // Get the reorganized bookmarks
-        const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8000/api/result/${reorganizationSessionId}`);
+        const backendUrl = getBackendUrl();
+        const response = await fetch(`${backendUrl}/api/result/${reorganizationSessionId}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

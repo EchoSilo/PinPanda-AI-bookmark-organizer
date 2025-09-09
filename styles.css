@@ -203,6 +203,29 @@ body {
     transform: none;
 }
 
+.ai-status-indicator {
+    font-size: 12px;
+    margin-left: 4px;
+    opacity: 0.8;
+}
+
+.ai-status-indicator.connected {
+    color: #10b981;
+}
+
+.ai-status-indicator.disconnected {
+    color: #ef4444;
+}
+
+.ai-status-indicator.testing {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
 .reorganize-info {
     text-align: center;
     padding: 20px;

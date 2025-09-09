@@ -1047,10 +1047,15 @@ function hideReorganizeModal() {
     document.getElementById('reorganize-modal').style.display = 'none';
     
     // Reset modal state
-    document.getElementById('reorganize-info').style.display = 'block';
-    document.getElementById('reorganize-progress').style.display = 'none';
-    document.getElementById('reorganize-confirm').style.display = 'inline-block';
-    document.getElementById('reorganize-cancel').textContent = 'Cancel';
+    const reorganizeInfo = document.querySelector('.reorganize-info');
+    const reorganizeProgress = document.getElementById('reorganize-progress');
+    const reorganizeConfirm = document.getElementById('reorganize-confirm');
+    const reorganizeCancel = document.getElementById('reorganize-cancel');
+    
+    if (reorganizeInfo) reorganizeInfo.style.display = 'block';
+    if (reorganizeProgress) reorganizeProgress.style.display = 'none';
+    if (reorganizeConfirm) reorganizeConfirm.style.display = 'inline-block';
+    if (reorganizeCancel) reorganizeCancel.textContent = 'Cancel';
 }
 
 let reorganizationSessionId = null;
@@ -1068,10 +1073,15 @@ async function startReorganization() {
     reorganizationSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     
     // Switch to progress view
-    document.querySelector('.reorganize-info').style.display = 'none';
-    document.getElementById('reorganize-progress').style.display = 'block';
-    document.getElementById('reorganize-confirm').style.display = 'none';
-    document.getElementById('reorganize-cancel').textContent = 'Close';
+    const reorganizeInfo = document.querySelector('.reorganize-info');
+    const reorganizeProgress = document.getElementById('reorganize-progress');
+    const reorganizeConfirm = document.getElementById('reorganize-confirm');
+    const reorganizeCancel = document.getElementById('reorganize-cancel');
+    
+    if (reorganizeInfo) reorganizeInfo.style.display = 'none';
+    if (reorganizeProgress) reorganizeProgress.style.display = 'block';
+    if (reorganizeConfirm) reorganizeConfirm.style.display = 'none';
+    if (reorganizeCancel) reorganizeCancel.textContent = 'Close';
     
     try {
         // Start reorganization

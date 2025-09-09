@@ -1075,7 +1075,7 @@ async function startReorganization() {
     
     try {
         // Start reorganization
-        const response = await fetch('http://localhost:8000/api/reorganize', {
+        const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8000/api/reorganize`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1109,7 +1109,7 @@ async function pollReorganizationProgress() {
     if (!reorganizationSessionId) return;
     
     try {
-        const response = await fetch(`http://localhost:8000/api/progress/${reorganizationSessionId}`);
+        const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8000/api/progress/${reorganizationSessionId}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1146,7 +1146,7 @@ function updateProgressDisplay(progress) {
 async function handleReorganizationComplete() {
     try {
         // Get the reorganized bookmarks
-        const response = await fetch(`http://localhost:8000/api/result/${reorganizationSessionId}`);
+        const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8000/api/result/${reorganizationSessionId}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

@@ -1,0 +1,48 @@
+Failed to compile
+./app/components/BookmarkOrganizer.tsx
+Error: 
+  × cannot reassign to a variable declared with `const`
+     ╭─[/home/runner/workspace/app/components/BookmarkOrganizer.tsx:422:1]
+ 422 │   expandedFolders,
+ 423 │   toggleFolder,
+ 424 │   searchResultFolders = null,
+ 425 │   setExpandedFolders
+     ·   ─────────┬────────
+     ·            ╰── cannot reassign
+ 426 │ }: { 
+ 427 │   folderHierarchy: FolderNode;
+ 428 │   onSelectFolder: (path: string) => void;
+ 429 │   selectedPath: string;
+ 430 │   onDrop: (bookmark: Bookmark, targetFolder: string) => void;
+ 431 │   expandedFolders: string[];
+ 432 │   toggleFolder: (path: string) => void;
+ 433 │   searchResultFolders?: string[] | null;
+ 434 │   setExpandedFolders: React.Dispatch<React.SetStateAction<string[]>>;
+ 435 │ }) => {
+ 436 │   const bgColor = useColorModeValue('white', 'gray.700');
+ 437 │   const hoverBgColor = useColorModeValue('gray.100', 'gray.600');
+ 438 │   const selectedBgColor = useColorModeValue('blue.50', 'blue.900');
+ 439 │   const searchResultColor = useColorModeValue('green.50', 'green.900');
+ 440 │   
+ 441 │   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+ 442 │     e.preventDefault();
+ 443 │   };
+ 444 │ 
+ 445 │   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+ 446 │     e.preventDefault();
+ 447 │     const bookmarkData = e.dataTransfer.getData('bookmark');
+ 448 │     if (bookmarkData) {
+ 449 │       const bookmark = JSON.parse(bookmarkData);
+ 450 │       onDrop(bookmark, '');
+ 451 │     }
+ 452 │   };
+ 453 │   
+ 454 │   // Auto-expand folders containing search results
+ 455 │   const { setExpandedFolders } = props; // Access from props
+     ·           ─────────┬────────
+     ·                    ╰── const variable was declared here
+ 456 │   
+ 457 │   React.useEffect(() => {
+ 458 │     if (searchResultFolders && searchResultFolders.length > 0 && setExpandedFolders) {
+     ╰────
+This error occurred during the build process and can only be dismissed by fixing the error.

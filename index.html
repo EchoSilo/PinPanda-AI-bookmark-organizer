@@ -14,6 +14,10 @@
                 <div class="logo">
                     🐼 PinPanda
                 </div>
+                <div class="ai-connection-status" id="ai-connection-status">
+                    <span class="connection-indicator" id="connection-indicator">⚡</span>
+                    <span class="connection-text" id="connection-text">AI Status</span>
+                </div>
                 <div class="context-info">
                     <span id="context-title">All Bookmarks</span>
                     <span id="bookmark-count">(0 bookmarks)</span>
@@ -299,8 +303,11 @@
                             </div>
                             <div class="form-group">
                                 <label for="openai-api-key">OpenAI API Key</label>
-                                <input type="password" id="openai-api-key" class="form-input" placeholder="sk-...">
+                                <input type="password" id="openai-api-key" class="form-input" placeholder="sk-..." onchange="testConnectionAfterKeyChange()">
                                 <p class="form-description">Your API key is stored securely in your browser and never sent to our servers</p>
+                                <div class="llm-connection-status" id="llm-connection-status" style="display: none;">
+                                    <span class="connection-result" id="connection-result"></span>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="categorization-depth">Categorization Depth</label>

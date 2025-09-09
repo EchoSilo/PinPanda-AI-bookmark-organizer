@@ -64,15 +64,10 @@ function clearBookmarkStorage() {
 
 // Backend URL utilities
 function getBackendUrl() {
-    // In Replit, use the same host but different port pattern
+    // In Replit, ports are exposed on the same domain with :port
     if (window.location.hostname.includes('.replit.dev') || window.location.hostname.includes('.repl.co')) {
-        // Replit environment - construct the backend URL
-        const hostParts = window.location.hostname.split('.');
-        if (hostParts.length >= 3) {
-            // Replace port in the subdomain for Replit
-            const baseHost = hostParts.slice(1).join('.');
-            return `${window.location.protocol}//${hostParts[0]}-8000.${baseHost}`;
-        }
+        // Replit environment - use same domain with port 8000
+        return `${window.location.protocol}//${window.location.hostname}:8000`;
     }
     
     // Fallback for local development
@@ -99,6 +94,59 @@ async function testBackendConnection() {
     } catch (error) {
         console.error('❌ Backend connection error:', error);
         return { connected: false, url: backendUrl, error: error.message };
+    }
+}
+
+async function testLLMConnection(apiKey, model) {
+    if (!apiKey || !apiKey.trim()) {
+        return { connected: false, error: 'No API key provided' };
+    }
+    
+    try {
+        console.log('Testing LLM connection with model:', model);
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey.trim()}`
+            },
+            body: JSON.stringify({
+                model: getModelName(model),
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a test assistant.'
+                    },
+                    {
+                        role: 'user',
+                        content: 'Respond with exactly: "Connection test successful"'
+                    }
+                ],
+                max_tokens: 10,
+                temperature: 0
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ LLM connection successful:', data);
+            return { 
+                connected: true, 
+                model: getModelName(model),
+                response: data.choices[0]?.message?.content || 'Success'
+            };
+        } else {
+            const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+            console.error('❌ LLM connection failed:', response.status, errorData);
+            return { 
+                connected: false, 
+                error: `API Error: ${errorData.error?.message || response.statusText}`,
+                status: response.status
+            };
+        }
+    } catch (error) {
+        console.error('❌ LLM connection error:', error);
+        return { connected: false, error: error.message };
     }
 }
 
@@ -313,16 +361,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update reorganize button state
     updateReorganizeButton();
     
-    // Test backend connection and update indicator
-    updateAIStatusIndicator('testing');
-    testBackendConnection().then(result => {
-        if (result.connected) {
-            console.log('✅ AI backend ready for reorganization');
-            updateAIStatusIndicator('connected');
-        } else {
-            console.warn('⚠️ AI backend not available:', result.error);
-            updateAIStatusIndicator('disconnected');
-        }
+    // Add click handler to AI status for testing
+    const aiStatus = document.getElementById('ai-connection-status');
+    if (aiStatus) {
+        aiStatus.addEventListener('click', () => {
+            updateAIConnectionStatus('testing');
+            Promise.all([
+                testBackendConnection(),
+                testAIConnection()
+            ]).then(([backendResult, llmResult]) => {
+                updateAIConnectionStatus('ready', { backend: backendResult, llm: llmResult });
+            });
+        });
+    }
+    
+    // Test connections and update indicators
+    updateAIConnectionStatus('testing');
+    
+    // Test both backend and LLM connections
+    Promise.all([
+        testBackendConnection(),
+        testAIConnection()
+    ]).then(([backendResult, llmResult]) => {
+        updateAIConnectionStatus('ready', { backend: backendResult, llm: llmResult });
     });
 });
 
@@ -368,6 +429,99 @@ function updateAIStatusIndicator(status) {
         default:
             indicator.textContent = '⚡';
             indicator.title = 'AI service status unknown';
+    }
+}
+
+function updateAIConnectionStatus(status, results = null) {
+    const statusElement = document.getElementById('ai-connection-status');
+    const indicator = document.getElementById('connection-indicator');
+    const text = document.getElementById('connection-text');
+    
+    if (!statusElement || !indicator || !text) return;
+    
+    // Remove all status classes
+    statusElement.classList.remove('connected', 'disconnected', 'testing');
+    
+    switch (status) {
+        case 'testing':
+            statusElement.classList.add('testing');
+            indicator.textContent = '⏳';
+            text.textContent = 'Testing AI...';
+            statusElement.title = 'Testing AI connections...';
+            break;
+            
+        case 'ready':
+            if (results) {
+                const backendOk = results.backend?.connected;
+                const llmOk = results.llm?.connected;
+                
+                if (backendOk && llmOk) {
+                    statusElement.classList.add('connected');
+                    indicator.textContent = '🤖';
+                    text.textContent = 'AI Ready';
+                    statusElement.title = `Backend: ✅ Connected\nLLM: ✅ ${results.llm.model || 'Connected'}`;
+                } else if (backendOk && !llmOk) {
+                    statusElement.classList.add('disconnected');
+                    indicator.textContent = '🔑';
+                    text.textContent = 'Need API Key';
+                    statusElement.title = `Backend: ✅ Connected\nLLM: ❌ ${results.llm.error || 'Not configured'}`;
+                } else {
+                    statusElement.classList.add('disconnected');
+                    indicator.textContent = '❌';
+                    text.textContent = 'AI Offline';
+                    statusElement.title = `Backend: ❌ ${results.backend.error || 'Disconnected'}\nLLM: ❌ ${results.llm.error || 'Not tested'}`;
+                }
+            }
+            break;
+            
+        default:
+            indicator.textContent = '⚡';
+            text.textContent = 'AI Status';
+            statusElement.title = 'AI status unknown';
+    }
+}
+
+async function testAIConnection() {
+    const settings = loadAISettings();
+    if (!settings || !settings.aiEnabled || !settings.apiKey) {
+        return { connected: false, error: 'No API key configured' };
+    }
+    
+    return await testLLMConnection(settings.apiKey, settings.aiModel);
+}
+
+async function testConnectionAfterKeyChange() {
+    const settings = loadAISettings();
+    if (!settings || !settings.apiKey) return;
+    
+    const statusElement = document.getElementById('llm-connection-status');
+    const resultElement = document.getElementById('connection-result');
+    
+    if (!statusElement || !resultElement) return;
+    
+    // Show testing status
+    statusElement.style.display = 'block';
+    statusElement.className = 'llm-connection-status testing';
+    resultElement.textContent = '⏳ Testing connection to OpenAI...';
+    
+    try {
+        const result = await testLLMConnection(settings.apiKey, settings.aiModel);
+        
+        if (result.connected) {
+            statusElement.className = 'llm-connection-status success';
+            resultElement.textContent = `✅ Connected to ${result.model} successfully`;
+        } else {
+            statusElement.className = 'llm-connection-status error';
+            resultElement.textContent = `❌ ${result.error}`;
+        }
+        
+        // Update main AI status
+        const backendResult = await testBackendConnection();
+        updateAIConnectionStatus('ready', { backend: backendResult, llm: result });
+        
+    } catch (error) {
+        statusElement.className = 'llm-connection-status error';
+        resultElement.textContent = `❌ Connection failed: ${error.message}`;
     }
 }
 

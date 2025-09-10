@@ -145,15 +145,10 @@ async function testLLMConnection(apiKey, model) {
         if (response.ok) {
             const data = await response.json();
             console.log('✅ LLM connection successful:', data);
-            
-            const responseContent = isGPT5 
-                ? data.text?.content || 'Success'
-                : data.choices[0]?.message?.content || 'Success';
-                
             return { 
                 connected: true, 
                 model: getModelName(model),
-                response: responseContent
+                response: data.choices[0]?.message?.content || 'Success'
             };
         } else {
             const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));

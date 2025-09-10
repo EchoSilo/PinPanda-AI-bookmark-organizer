@@ -104,56 +104,36 @@ async function testLLMConnection(apiKey, model) {
     
     try {
         console.log('Testing LLM connection with model:', model);
-        
-        const isGPT5 = model.startsWith('gpt-5');
-        const endpoint = isGPT5 ? 'https://api.openai.com/v1/responses' : 'https://api.openai.com/v1/chat/completions';
-        
-        const requestBody = isGPT5 ? {
-            model: getModelName(model),
-            input: 'Respond with exactly: "Connection test successful"',
-            text: {
-                verbosity: 'low'
-            },
-            reasoning: {
-                effort: 'minimal'
-            }
-        } : {
-            model: getModelName(model),
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are a test assistant.'
-                },
-                {
-                    role: 'user',
-                    content: 'Respond with exactly: "Connection test successful"'
-                }
-            ],
-            max_tokens: 10,
-            temperature: 0
-        };
-        
-        const response = await fetch(endpoint, {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey.trim()}`
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify({
+                model: getModelName(model),
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a test assistant.'
+                    },
+                    {
+                        role: 'user',
+                        content: 'Respond with exactly: "Connection test successful"'
+                    }
+                ],
+                ...(model.startsWith('gpt-5') ? {} : { max_tokens: 10 }),
+                temperature: 0
+            })
         });
         
         if (response.ok) {
             const data = await response.json();
             console.log('✅ LLM connection successful:', data);
-            
-            const responseContent = isGPT5 
-                ? data.text?.content || 'Success'
-                : data.choices[0]?.message?.content || 'Success';
-                
             return { 
                 connected: true, 
                 model: getModelName(model),
-                response: responseContent
+                response: data.choices[0]?.message?.content || 'Success'
             };
         } else {
             const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__puppeteer__puppeteer_evaluate",
+      "WebSearch",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:cookbook.openai.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

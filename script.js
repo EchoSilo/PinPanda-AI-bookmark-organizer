@@ -356,6 +356,10 @@ let sortField = 'dateAdded';
 let sortDirection = 'desc';
 let currentBookmarks = [];
 
+// Category sorting state
+let categorySortField = 'name'; // name, count
+let categorySortDirection = 'asc';
+
 // DOM Elements
 const categoryTree = document.getElementById('category-tree');
 const bookmarksContainer = document.getElementById('bookmarks-container');
@@ -377,6 +381,9 @@ document.addEventListener('DOMContentLoaded', function() {
     renderCategoryTree();
     updateBookmarkDisplay();
     setupEventListeners();
+    
+    // Initialize sort dropdown
+    updateSortDropdown();
     
     // Update reorganize button state
     updateReorganizeButton();
@@ -571,16 +578,69 @@ function setupEventListeners() {
     }
 }
 
+// Category Sorting
+function sortCategoryEntries(entries) {
+    return entries.sort((a, b) => {
+        const [aName, aData] = a;
+        const [bName, bData] = b;
+        
+        let aVal, bVal;
+        
+        switch (categorySortField) {
+            case 'name':
+                aVal = aName.toLowerCase();
+                bVal = bName.toLowerCase();
+                break;
+            case 'count':
+                aVal = getTotalBookmarks(aData);
+                bVal = getTotalBookmarks(bData);
+                break;
+            default:
+                return 0;
+        }
+        
+        if (aVal < bVal) return categorySortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return categorySortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
+
+function handleCategorySort(field) {
+    if (categorySortField === field) {
+        categorySortDirection = categorySortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        categorySortField = field;
+        categorySortDirection = 'asc';
+    }
+    
+    renderCategoryTree();
+}
+
 // Render Category Tree
 function renderCategoryTree() {
     categoryTree.innerHTML = '';
+    
+    // Add category sorting controls
+    const sortControls = document.createElement('div');
+    sortControls.className = 'category-sort-controls';
+    sortControls.innerHTML = `
+        <div class="sort-label">Sort by:</div>
+        <button class="sort-btn ${categorySortField === 'name' ? 'active' : ''}" onclick="handleCategorySort('name')">
+            Name ${categorySortField === 'name' ? (categorySortDirection === 'asc' ? '↑' : '↓') : ''}
+        </button>
+        <button class="sort-btn ${categorySortField === 'count' ? 'active' : ''}" onclick="handleCategorySort('count')">
+            Count ${categorySortField === 'count' ? (categorySortDirection === 'asc' ? '↑' : '↓') : ''}
+        </button>
+    `;
+    categoryTree.appendChild(sortControls);
     
     // Add "All Bookmarks" option
     const allItem = createCategoryItem('All Bookmarks', bookmarks.length, '', true);
     categoryTree.appendChild(allItem);
     
-    // Render categories
-    Object.entries(categories).forEach(([name, data]) => {
+    // Render categories (sorted)
+    const sortedEntries = sortCategoryEntries(Object.entries(categories));
+    sortedEntries.forEach(([name, data]) => {
         const item = createCategoryElement(name, data, 0);
         categoryTree.appendChild(item);
     });
@@ -600,7 +660,9 @@ function createCategoryElement(name, data, level) {
         childContainer.className = 'category-children';
         childContainer.style.display = 'none';
         
-        Object.entries(data.children).forEach(([childName, childData]) => {
+        // Sort children too
+        const sortedChildren = sortCategoryEntries(Object.entries(data.children));
+        sortedChildren.forEach(([childName, childData]) => {
             const childPath = `${name} / ${childName}`;
             const childElement = createCategoryElement(childName, childData, level + 1);
             childContainer.appendChild(childElement);
@@ -711,6 +773,19 @@ function sortBookmarks(bookmarks) {
                 aVal = a.category.toLowerCase();
                 bVal = b.category.toLowerCase();
                 break;
+            case 'url':
+                aVal = a.url.toLowerCase();
+                bVal = b.url.toLowerCase();
+                break;
+            case 'domain':
+                try {
+                    aVal = new URL(a.url).hostname.toLowerCase();
+                    bVal = new URL(b.url).hostname.toLowerCase();
+                } catch {
+                    aVal = a.url.toLowerCase();
+                    bVal = b.url.toLowerCase();
+                }
+                break;
             case 'dateAdded':
                 aVal = a.dateAdded;
                 bVal = b.dateAdded;
@@ -802,6 +877,12 @@ function renderBookmarkTable(bookmarks) {
                     ${sortField === 'title' && sortDirection === 'asc' ? '↑' : '↓'}
                 </span>
             </th>
+            <th class="sortable" onclick="handleSort('domain')">
+                DOMAIN
+                <span class="sort-icon ${sortField === 'domain' ? 'active' : ''}">
+                    ${sortField === 'domain' && sortDirection === 'asc' ? '↑' : '↓'}
+                </span>
+            </th>
             <th class="sortable" onclick="handleSort('category')">
                 CATEGORY
                 <span class="sort-icon ${sortField === 'category' ? 'active' : ''}">
@@ -867,6 +948,14 @@ function createBookmarkTableRow(bookmark) {
         year: 'numeric'
     });
     
+    // Extract domain for display
+    let domain;
+    try {
+        domain = new URL(bookmark.url).hostname;
+    } catch {
+        domain = bookmark.url;
+    }
+    
     row.innerHTML = `
         <td class="bookmarks-table-cell">
             <div class="bookmark-name-cell">
@@ -878,6 +967,9 @@ function createBookmarkTableRow(bookmark) {
                     <div class="bookmark-url">${bookmark.url}</div>
                 </div>
             </div>
+        </td>
+        <td class="bookmarks-table-cell">
+            <div class="bookmark-domain">${domain}</div>
         </td>
         <td class="bookmarks-table-cell">
             <div class="bookmark-category-cell">
@@ -981,7 +1073,23 @@ function handleSort(field) {
         sortDirection = 'asc';
     }
     
+    // Update dropdown to reflect current sort
+    updateSortDropdown();
     renderBookmarks(currentBookmarks);
+}
+
+function handleBookmarkSort(value) {
+    const [field, direction] = value.split('-');
+    sortField = field;
+    sortDirection = direction;
+    renderBookmarks(currentBookmarks);
+}
+
+function updateSortDropdown() {
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.value = `${sortField}-${sortDirection}`;
+    }
 }
 
 function showBookmarkMenu(event) {

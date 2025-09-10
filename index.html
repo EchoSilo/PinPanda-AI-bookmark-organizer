@@ -67,6 +67,20 @@
                         <button class="view-btn" onclick="setView('list')">≡ List</button>
                     </div>
                     
+                    <div class="sort-controls">
+                        <label for="sort-select">Sort by:</label>
+                        <select id="sort-select" onchange="handleBookmarkSort(this.value)">
+                            <option value="dateAdded-desc">Date Added (Newest)</option>
+                            <option value="dateAdded-asc">Date Added (Oldest)</option>
+                            <option value="title-asc">Title (A-Z)</option>
+                            <option value="title-desc">Title (Z-A)</option>
+                            <option value="domain-asc">Domain (A-Z)</option>
+                            <option value="domain-desc">Domain (Z-A)</option>
+                            <option value="category-asc">Category (A-Z)</option>
+                            <option value="category-desc">Category (Z-A)</option>
+                        </select>
+                    </div>
+                    
                     <div class="filter-controls" id="filter-controls" style="display: none;">
                         <span>Filters:</span>
                         <button class="filter-chip">Recent ×</button>

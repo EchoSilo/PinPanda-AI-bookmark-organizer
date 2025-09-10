@@ -67,6 +67,12 @@
                         <button class="view-btn" onclick="setView('list')">≡ List</button>
                     </div>
                     
+                    <div class="selection-controls" id="selection-controls" style="display: none;">
+                        <button class="btn-selection" onclick="selectAllBookmarks()">Select All</button>
+                        <button class="btn-selection" onclick="selectNoneBookmarks()">Select None</button>
+                        <span class="selection-count" id="selection-count">0 selected</span>
+                    </div>
+                    
                     <div class="sort-controls">
                         <label for="sort-select">Sort by:</label>
                         <select id="sort-select" onchange="handleBookmarkSort(this.value)">
@@ -92,6 +98,20 @@
                     <!-- Bookmarks will be populated by JavaScript -->
                 </div>
             </main>
+        </div>
+
+        <!-- Bulk Actions Bar -->
+        <div class="bulk-actions-bar" id="bulk-actions-bar" style="display: none;">
+            <span class="bulk-actions-text" id="bulk-actions-text">0 bookmarks selected</span>
+            <button class="bulk-action-btn" onclick="bulkMoveToCategory()" title="Move selected bookmarks">
+                📁 Move to Category
+            </button>
+            <button class="bulk-action-btn danger" onclick="bulkDeleteBookmarks()" title="Delete selected bookmarks">
+                🗑️ Delete
+            </button>
+            <button class="bulk-action-btn secondary" onclick="exitSelectionMode()" title="Clear selection">
+                ✕ Clear Selection
+            </button>
         </div>
 
         <!-- AI Assistant Panel -->

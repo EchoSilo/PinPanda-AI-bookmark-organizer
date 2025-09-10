@@ -453,7 +453,7 @@ body {
 .category-item {
     padding: 8px 20px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -467,6 +467,11 @@ body {
     background-color: #e8f5e8;
     color: #28a745;
     font-weight: 500;
+}
+
+.category-item.drag-over {
+    background-color: #e3f2fd;
+    border-left: 3px solid #2196f3;
 }
 
 .category-item.has-children {
@@ -823,6 +828,164 @@ body {
     padding: 16px;
     cursor: pointer;
     transition: all 0.2s;
+    position: relative;
+}
+
+.drag-handle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    color: #999;
+    font-size: 12px;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.bookmark-item:hover .drag-handle {
+    opacity: 1;
+}
+
+.bookmark-item[draggable="true"]:active .drag-handle {
+    cursor: grabbing;
+}
+
+.bookmark-item.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+.bookmarks-table-row[draggable="true"] {
+    cursor: grab;
+}
+
+.bookmarks-table-row.dragging {
+    opacity: 0.5;
+    background-color: #f8f9fa;
+}
+
+.bookmark-item.dragging-multi,
+.bookmarks-table-row.dragging-multi {
+    opacity: 0.3;
+    transform: scale(0.95);
+    border: 2px dashed #2196f3;
+}
+
+/* Selection Checkboxes */
+.selection-checkbox {
+    margin-right: 8px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+}
+
+.selection-mode .selection-checkbox,
+.bookmark-item:hover .selection-checkbox,
+.bookmarks-table-row:hover .selection-checkbox {
+    opacity: 1;
+}
+
+.bookmark-item.selected {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.bookmarks-table-row.selected {
+    background-color: #e3f2fd;
+}
+
+/* Selection Controls */
+.selection-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-selection {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.btn-selection:hover {
+    background-color: #f8f9fa;
+    border-color: #28a745;
+}
+
+.selection-count {
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translate(-50%, 100%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+.bulk-actions-text {
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.bulk-action-btn {
+    padding: 8px 12px;
+    border: none;
+    background: #555;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.bulk-action-btn:hover {
+    background: #666;
+}
+
+.bulk-action-btn.danger {
+    background: #dc2626;
+}
+
+.bulk-action-btn.danger:hover {
+    background: #b91c1c;
+}
+
+.bulk-action-btn.secondary {
+    background: transparent;
+    border: 1px solid #666;
+}
+
+.bulk-action-btn.secondary:hover {
+    background: #444;
 }
 
 .bookmark-item:hover {

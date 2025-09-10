@@ -356,6 +356,10 @@ let sortField = 'dateAdded';
 let sortDirection = 'desc';
 let currentBookmarks = [];
 
+// Selection State
+let selectedBookmarks = new Set(); // Track selected bookmark URLs
+let selectionMode = false; // Whether we're in selection mode
+
 // Category sorting state
 let categorySortField = 'name'; // name, count
 let categorySortDirection = 'asc';
@@ -679,6 +683,11 @@ function createCategoryItem(name, count, path, isActive = false, hasChildren = f
     item.className = `category-item ${isActive ? 'active' : ''} ${hasChildren ? 'has-children' : ''}`;
     item.onclick = () => selectCategory(path, item);
     
+    // Add drop event listeners
+    item.addEventListener('dragover', (e) => handleCategoryDragOver(e, path));
+    item.addEventListener('drop', (e) => handleCategoryDrop(e, path));
+    item.addEventListener('dragleave', handleCategoryDragLeave);
+    
     const content = document.createElement('span');
     content.style.display = 'flex';
     content.style.alignItems = 'center';
@@ -915,10 +924,17 @@ function renderBookmarkTable(bookmarks) {
 function createBookmarkGridItem(bookmark) {
     const item = document.createElement('div');
     item.className = 'bookmark-item';
+    item.draggable = true;
     item.onclick = () => window.open(bookmark.url, '_blank');
     
+    // Add drag event listeners
+    item.addEventListener('dragstart', (e) => handleBookmarkDragStart(e, bookmark));
+    item.addEventListener('dragend', handleBookmarkDragEnd);
+    
     item.innerHTML = `
-        <a href="${bookmark.url}" class="bookmark-title" target="_blank" onclick="event.stopPropagation()">
+        <input type="checkbox" class="selection-checkbox" onclick="handleBookmarkSelection(event, '${bookmark.url}')" />
+        <div class="drag-handle">⋮⋮</div>
+        <a href="${bookmark.url}" class="bookmark-title" target="_blank" onclick="event.stopPropagation()" draggable="false">
             ${bookmark.title}
         </a>
         <div class="bookmark-url">${bookmark.url}</div>
@@ -932,6 +948,11 @@ function createBookmarkGridItem(bookmark) {
 function createBookmarkTableRow(bookmark) {
     const row = document.createElement('tr');
     row.className = 'bookmarks-table-row';
+    row.draggable = true;
+    
+    // Add drag event listeners
+    row.addEventListener('dragstart', (e) => handleBookmarkDragStart(e, bookmark));
+    row.addEventListener('dragend', handleBookmarkDragEnd);
     
     const favicon = bookmark.favicon ? 
         `<img src="${bookmark.favicon}" alt="" class="bookmark-favicon" onerror="this.style.display='none'" />` :
@@ -959,6 +980,7 @@ function createBookmarkTableRow(bookmark) {
     row.innerHTML = `
         <td class="bookmarks-table-cell">
             <div class="bookmark-name-cell">
+                <input type="checkbox" class="selection-checkbox" onclick="handleBookmarkSelection(event, '${bookmark.url}')" />
                 ${favicon}
                 <div class="bookmark-info">
                     <a href="${bookmark.url}" class="bookmark-title" target="_blank">
@@ -2055,4 +2077,391 @@ function showHelpInfo() {
 function updateContextInfo(title, count) {
     if (contextTitle) contextTitle.textContent = title;
     if (bookmarkCount) bookmarkCount.textContent = `${count} bookmark${count !== 1 ? 's' : ''}`;
+}
+
+// Drag and Drop Functions
+function handleBookmarkDragStart(event, bookmark) {
+    console.log('Starting drag for:', bookmark.title);
+    
+    let draggedBookmarks = [];
+    
+    // Check if this bookmark is part of a selection
+    if (selectionMode && selectedBookmarks.has(bookmark.url)) {
+        // Dragging selected items - collect all selected bookmarks
+        draggedBookmarks = bookmarks.filter(b => selectedBookmarks.has(b.url));
+        console.log(`Dragging ${draggedBookmarks.length} selected bookmarks`);
+    } else {
+        // Single bookmark drag
+        draggedBookmarks = [bookmark];
+    }
+    
+    // Store bookmark data in the drag event
+    event.dataTransfer.setData('application/json', JSON.stringify(draggedBookmarks));
+    event.dataTransfer.effectAllowed = 'move';
+    
+    // Add visual feedback
+    event.target.classList.add('dragging');
+    
+    // If dragging multiple items, add visual feedback to all selected items
+    if (draggedBookmarks.length > 1) {
+        document.querySelectorAll('.bookmark-item.selected, .bookmarks-table-row.selected').forEach(element => {
+            element.classList.add('dragging-multi');
+        });
+        
+        // Create a drag image showing count
+        createMultiDragImage(event, draggedBookmarks.length);
+    }
+}
+
+function handleBookmarkDragEnd(event) {
+    console.log('Drag ended');
+    
+    // Remove visual feedback
+    event.target.classList.remove('dragging');
+    
+    // Remove multi-drag visual feedback
+    document.querySelectorAll('.dragging-multi').forEach(element => {
+        element.classList.remove('dragging-multi');
+    });
+    
+    // Clean up any remaining drop zone highlights
+    document.querySelectorAll('.category-item.drag-over').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+}
+
+function handleCategoryDragOver(event, categoryPath) {
+    event.preventDefault(); // Allow drop
+    event.dataTransfer.dropEffect = 'move';
+    
+    // Add visual feedback
+    event.currentTarget.classList.add('drag-over');
+}
+
+function handleCategoryDragLeave(event) {
+    // Remove visual feedback
+    event.currentTarget.classList.remove('drag-over');
+}
+
+function handleCategoryDrop(event, categoryPath) {
+    event.preventDefault();
+    
+    // Remove visual feedback
+    event.currentTarget.classList.remove('drag-over');
+    
+    console.log('Dropped on category:', categoryPath);
+    
+    // Get the bookmark data
+    try {
+        const draggedBookmarks = JSON.parse(event.dataTransfer.getData('application/json'));
+        
+        // Handle both single bookmark and array of bookmarks
+        const bookmarksToMove = Array.isArray(draggedBookmarks) ? draggedBookmarks : [draggedBookmarks];
+        
+        console.log(`Moving ${bookmarksToMove.length} bookmark(s) to category:`, categoryPath);
+        
+        // Update all bookmarks' categories
+        updateMultipleBookmarkCategories(bookmarksToMove, categoryPath || 'Uncategorized');
+        
+    } catch (error) {
+        console.error('Error parsing dropped data:', error);
+    }
+}
+
+function updateBookmarkCategory(draggedBookmark, newCategoryPath) {
+    console.log('Updating bookmark category:', draggedBookmark.title, 'to:', newCategoryPath);
+    
+    // Find the bookmark in the bookmarks array by URL and title (unique combination)
+    const bookmarkIndex = bookmarks.findIndex(bookmark => 
+        bookmark.url === draggedBookmark.url && bookmark.title === draggedBookmark.title
+    );
+    
+    if (bookmarkIndex === -1) {
+        console.error('Bookmark not found in array');
+        return;
+    }
+    
+    const oldCategory = bookmarks[bookmarkIndex].category;
+    
+    // Don't update if it's the same category
+    if (oldCategory === newCategoryPath) {
+        console.log('Bookmark is already in this category');
+        return;
+    }
+    
+    // Update the bookmark's category
+    bookmarks[bookmarkIndex].category = newCategoryPath;
+    
+    console.log(`Moved "${draggedBookmark.title}" from "${oldCategory}" to "${newCategoryPath}"`);
+    
+    // Save to localStorage
+    saveBookmarksToStorage();
+    
+    // Regenerate category structure
+    categories = generateCategoriesFromBookmarks(bookmarks);
+    
+    // Update the UI
+    renderCategoryTree();
+    updateBookmarkDisplay();
+    
+    // Show success feedback
+    showMoveSuccessMessage(draggedBookmark.title, newCategoryPath);
+}
+
+function updateMultipleBookmarkCategories(draggedBookmarks, newCategoryPath) {
+    console.log(`Updating ${draggedBookmarks.length} bookmark categories to:`, newCategoryPath);
+    
+    let movedCount = 0;
+    const movedTitles = [];
+    
+    draggedBookmarks.forEach(draggedBookmark => {
+        // Find the bookmark in the bookmarks array by URL and title (unique combination)
+        const bookmarkIndex = bookmarks.findIndex(bookmark => 
+            bookmark.url === draggedBookmark.url && bookmark.title === draggedBookmark.title
+        );
+        
+        if (bookmarkIndex !== -1) {
+            const oldCategory = bookmarks[bookmarkIndex].category;
+            
+            // Don't update if it's the same category
+            if (oldCategory !== newCategoryPath) {
+                bookmarks[bookmarkIndex].category = newCategoryPath;
+                movedCount++;
+                movedTitles.push(draggedBookmark.title);
+                
+                console.log(`Moved "${draggedBookmark.title}" from "${oldCategory}" to "${newCategoryPath}"`);
+            }
+        }
+    });
+    
+    if (movedCount > 0) {
+        // Save to localStorage
+        saveBookmarksToStorage();
+        
+        // Regenerate category structure
+        categories = generateCategoriesFromBookmarks(bookmarks);
+        
+        // Update the UI
+        renderCategoryTree();
+        updateBookmarkDisplay();
+        
+        // Show success feedback
+        showMultipleMoveSuccessMessage(movedCount, movedTitles, newCategoryPath);
+        
+        // Clear selection if we moved selected items
+        if (selectionMode && movedCount > 0) {
+            // Remove moved bookmarks from selection
+            draggedBookmarks.forEach(bookmark => {
+                selectedBookmarks.delete(bookmark.url);
+            });
+            
+            // Exit selection mode if no items remain selected
+            if (selectedBookmarks.size === 0) {
+                exitSelectionMode();
+            } else {
+                updateSelectionUI();
+                updateBookmarkSelectionStyles();
+            }
+        }
+    }
+}
+
+function showMultipleMoveSuccessMessage(count, titles, categoryPath) {
+    // Create a temporary success message
+    const message = document.createElement('div');
+    message.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-size: 14px;
+        max-width: 350px;
+    `;
+    
+    if (count === 1) {
+        message.textContent = `Moved "${titles[0]}" to "${categoryPath}"`;
+    } else {
+        message.innerHTML = `
+            <div style="font-weight: bold;">Moved ${count} bookmarks to "${categoryPath}"</div>
+            <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">
+                ${titles.slice(0, 2).join(', ')}${titles.length > 2 ? ` and ${titles.length - 2} others` : ''}
+            </div>
+        `;
+    }
+    
+    document.body.appendChild(message);
+    
+    // Remove the message after 4 seconds (longer for multiple items)
+    setTimeout(() => {
+        if (message.parentNode) {
+            message.parentNode.removeChild(message);
+        }
+    }, 4000);
+}
+
+function showMoveSuccessMessage(bookmarkTitle, categoryPath) {
+    // Create a temporary success message
+    const message = document.createElement('div');
+    message.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-size: 14px;
+        max-width: 300px;
+    `;
+    
+    message.textContent = `Moved "${bookmarkTitle}" to "${categoryPath}"`;
+    document.body.appendChild(message);
+    
+    // Remove the message after 3 seconds
+    setTimeout(() => {
+        if (message.parentNode) {
+            message.parentNode.removeChild(message);
+        }
+    }, 3000);
+}
+
+// Selection Management Functions
+function handleBookmarkSelection(event, bookmarkUrl) {
+    event.stopPropagation(); // Prevent triggering other click handlers
+    
+    if (!selectionMode) {
+        enterSelectionMode();
+    }
+    
+    if (event.target.checked) {
+        selectedBookmarks.add(bookmarkUrl);
+    } else {
+        selectedBookmarks.delete(bookmarkUrl);
+    }
+    
+    updateSelectionUI();
+    updateBookmarkSelectionStyles();
+}
+
+function enterSelectionMode() {
+    selectionMode = true;
+    document.body.classList.add('selection-mode');
+    document.getElementById('selection-controls').style.display = 'flex';
+    document.getElementById('bulk-actions-bar').style.display = 'flex';
+}
+
+function exitSelectionMode() {
+    selectionMode = false;
+    selectedBookmarks.clear();
+    document.body.classList.remove('selection-mode');
+    document.getElementById('selection-controls').style.display = 'none';
+    document.getElementById('bulk-actions-bar').style.display = 'none';
+    updateSelectionUI();
+    updateBookmarkSelectionStyles();
+}
+
+function selectAllBookmarks() {
+    // Select all visible bookmarks
+    currentBookmarks.forEach(bookmark => {
+        selectedBookmarks.add(bookmark.url);
+    });
+    
+    // Update checkboxes
+    document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    
+    updateSelectionUI();
+    updateBookmarkSelectionStyles();
+}
+
+function selectNoneBookmarks() {
+    selectedBookmarks.clear();
+    
+    // Update checkboxes
+    document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    updateSelectionUI();
+    updateBookmarkSelectionStyles();
+    
+    // Exit selection mode if nothing is selected
+    if (selectedBookmarks.size === 0) {
+        exitSelectionMode();
+    }
+}
+
+function updateSelectionUI() {
+    const selectionCount = document.getElementById('selection-count');
+    const bulkActionsText = document.getElementById('bulk-actions-text');
+    const count = selectedBookmarks.size;
+    
+    if (selectionCount) {
+        selectionCount.textContent = `${count} selected`;
+    }
+    
+    if (bulkActionsText) {
+        bulkActionsText.textContent = `${count} bookmark${count !== 1 ? 's' : ''} selected`;
+    }
+}
+
+function updateBookmarkSelectionStyles() {
+    // Update grid items
+    document.querySelectorAll('.bookmark-item').forEach(item => {
+        const checkbox = item.querySelector('.selection-checkbox');
+        if (checkbox && checkbox.checked) {
+            item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+    
+    // Update table rows
+    document.querySelectorAll('.bookmarks-table-row').forEach(row => {
+        const checkbox = row.querySelector('.selection-checkbox');
+        if (checkbox && checkbox.checked) {
+            row.classList.add('selected');
+        } else {
+            row.classList.remove('selected');
+        }
+    });
+}
+
+function createMultiDragImage(event, count) {
+    // Create a small element to use as drag image
+    const dragImage = document.createElement('div');
+    dragImage.style.cssText = `
+        position: absolute;
+        top: -1000px;
+        left: -1000px;
+        background: #333;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        z-index: 10000;
+    `;
+    dragImage.textContent = `${count} items`;
+    
+    document.body.appendChild(dragImage);
+    
+    // Set as drag image
+    event.dataTransfer.setDragImage(dragImage, 50, 20);
+    
+    // Remove after a short delay
+    setTimeout(() => {
+        if (dragImage.parentNode) {
+            dragImage.parentNode.removeChild(dragImage);
+        }
+    }, 1);
 }

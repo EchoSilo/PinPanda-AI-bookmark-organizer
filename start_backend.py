@@ -13,17 +13,17 @@ def check_requirements():
         import uvicorn
         import httpx
         import pydantic
-        print("✓ All required packages are installed")
+        print("All required packages are installed")
         return True
     except ImportError as e:
-        print(f"✗ Missing required package: {e}")
+        print(f"Missing required package: {e}")
         print("Installing requirements...")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
-            print("✓ Requirements installed successfully")
+            print("Requirements installed successfully")
             return True
         except subprocess.CalledProcessError:
-            print("✗ Failed to install requirements")
+            print("Failed to install requirements")
             return False
 
 def start_server():

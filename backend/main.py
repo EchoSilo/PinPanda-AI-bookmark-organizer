@@ -63,6 +63,20 @@ class ReorganizeRequest(BaseModel):
     categorizationDepth: str = "balanced"
     sessionId: str
 
+class ChatRequest(BaseModel):
+    message: str
+    bookmarks: List[Bookmark]
+    apiKey: str
+    chatModel: str = "gpt-4o-mini"  # Separate model for chat/search
+    context: Optional[Dict[str, Any]] = {}
+
+class ChatResponse(BaseModel):
+    response: str
+    intent: str
+    action: Optional[str] = None
+    results: Optional[List[Bookmark]] = None
+    suggestions: Optional[List[str]] = None
+
 # Global storage for progress tracking
 progress_store: Dict[str, ProgressUpdate] = {}
 
@@ -72,6 +86,232 @@ MAX_CONCURRENT_REQUESTS = 5  # Increased for better parallelization
 REQUEST_DELAY = 1.0  # Delay between batches in seconds
 MAX_TOKENS_PER_CHUNK = 20000  # Conservative token limit
 PROCESSING_TIMEOUT_MS = 120000  # 2 minutes
+
+async def detect_intent(message: str, api_key: str, model: str) -> Dict[str, Any]:
+    """Detect user intent from chat message"""
+    intent_prompt = f"""
+Analyze this user message about bookmarks and determine the intent. Return ONLY a JSON object with this structure:
+
+{{
+    "intent": "search" | "reorganize" | "general" | "export" | "stats",
+    "confidence": 0.0-1.0,
+    "entities": {{
+        "query": "extracted search terms if search intent",
+        "category": "specific category if mentioned",
+        "action": "specific action requested"
+    }}
+}}
+
+User message: "{message}"
+
+Intent definitions:
+- search: Finding specific bookmarks, looking for content. Keywords: find, search, show, get, travel, work, coding, development, javascript, react, etc. Any mention of specific topics/categories.
+- reorganize: Organizing, categorizing, cleaning up bookmarks. Keywords: organize, reorganize, categorize, clean up, restructure.
+- general: Questions about the collection, help, information. Keywords: help, how, what, explain.
+- export: Saving, downloading, exporting bookmarks. Keywords: export, download, save, backup.
+- stats: Analytics, counts, duplicate info, statistics. Keywords: how many, count, stats, statistics, duplicates, analytics.
+"""
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}"
+                },
+                json={
+                    "model": get_model_name(model),
+                    "messages": [
+                        {"role": "user", "content": intent_prompt}
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 300
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                content = data['choices'][0]['message']['content']
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse intent JSON: {content}")
+                    return {"intent": "general", "confidence": 0.5, "entities": {}}
+            else:
+                logger.error(f"Intent detection API error: {response.status_code}")
+                return {"intent": "general", "confidence": 0.5, "entities": {}}
+                
+        except Exception as e:
+            logger.error(f"Intent detection failed: {str(e)}")
+            return {"intent": "general", "confidence": 0.5, "entities": {}}
+
+def perform_keyword_search(query: str, bookmarks: List[Bookmark]) -> List[Bookmark]:
+    """Perform keyword-based search on bookmarks"""
+    query_lower = query.lower()
+    keywords = query_lower.split()
+    
+    logger.info(f"Keyword search: '{query}' -> keywords: {keywords} in {len(bookmarks)} bookmarks")
+    
+    scored_bookmarks = []
+    
+    for bookmark in bookmarks:
+        score = 0
+        text_fields = [
+            bookmark.title.lower(),
+            bookmark.url.lower(),
+            (bookmark.category or "").lower(),
+            (bookmark.description or "").lower()
+        ]
+        
+        combined_text = " ".join(text_fields)
+        
+        # Score based on keyword matches
+        for keyword in keywords:
+            if keyword in bookmark.title.lower():
+                score += 10  # Title matches are most important
+            elif keyword in bookmark.url.lower():
+                score += 5   # URL matches are good
+            elif keyword in (bookmark.category or "").lower():
+                score += 3   # Category matches
+            elif keyword in (bookmark.description or "").lower():
+                score += 2   # Description matches
+            elif keyword in combined_text:
+                score += 1   # Any other match
+        
+        if score > 0:
+            scored_bookmarks.append((bookmark, score))
+    
+    # Sort by score and return top results
+    scored_bookmarks.sort(key=lambda x: x[1], reverse=True)
+    result_bookmarks = [bookmark for bookmark, score in scored_bookmarks[:50]]
+    
+    logger.info(f"Keyword search found {len(scored_bookmarks)} matches, returning top {len(result_bookmarks)}")
+    return result_bookmarks
+
+async def search_bookmarks_with_ai(query: str, bookmarks: List[Bookmark], api_key: str, model: str) -> List[Bookmark]:
+    """Search bookmarks using keyword pre-filtering + AI semantic search"""
+    if not bookmarks:
+        return []
+    
+    # Step 1: Pre-filter with keyword search to reduce context size
+    keyword_results = perform_keyword_search(query, bookmarks)
+    
+    # If keyword search found very few results, use all bookmarks for AI
+    search_candidates = keyword_results if len(keyword_results) >= 5 else bookmarks
+    
+    # If we have too many candidates, limit to top 100 to stay within token limits
+    if len(search_candidates) > 100:
+        search_candidates = search_candidates[:100]
+    
+    # Step 2: Use AI for semantic search on the filtered candidates
+    bookmark_data = [
+        {
+            "index": i,
+            "title": bookmark.title,
+            "url": bookmark.url,
+            "category": bookmark.category or "Uncategorized",
+            "description": bookmark.description or ""
+        }
+        for i, bookmark in enumerate(search_candidates)
+    ]
+    
+    search_prompt = f"""
+Given this user query: "{query}"
+
+Find the most relevant bookmarks from this pre-filtered collection and return ONLY a JSON array of bookmark indices (numbers only):
+
+{json.dumps(bookmark_data, indent=2)}
+
+Return format: [1, 5, 12, 23]
+Return the indices of the most relevant bookmarks, sorted by relevance (most relevant first).
+Consider semantic meaning, not just keyword matches.
+Limit results to 15 bookmarks maximum.
+"""
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}"
+                },
+                json={
+                    "model": get_model_name(model),
+                    "messages": [
+                        {"role": "user", "content": search_prompt}
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": 500
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                content = data['choices'][0]['message']['content']
+                try:
+                    indices = json.loads(content)
+                    # Return bookmarks at specified indices from search candidates
+                    return [search_candidates[i] for i in indices if 0 <= i < len(search_candidates)]
+                except (json.JSONDecodeError, IndexError, TypeError):
+                    logger.warning(f"Failed to parse search results: {content}")
+                    return []
+            else:
+                logger.error(f"Search API error: {response.status_code}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"AI search failed: {str(e)}")
+            return []
+
+async def generate_bookmark_stats(bookmarks: List[Bookmark]) -> Dict[str, Any]:
+    """Generate statistics about bookmark collection"""
+    if not bookmarks:
+        return {
+            "total": 0,
+            "categories": {},
+            "domains": {},
+            "duplicates": 0
+        }
+    
+    # Count categories
+    categories = {}
+    domains = {}
+    
+    for bookmark in bookmarks:
+        # Category stats
+        category = bookmark.category or "Uncategorized"
+        categories[category] = categories.get(category, 0) + 1
+        
+        # Domain stats
+        try:
+            domain = urlparse(bookmark.url).netloc.lower()
+            domains[domain] = domains.get(domain, 0) + 1
+        except:
+            pass
+    
+    # Find duplicates
+    urls_seen = set()
+    duplicates = 0
+    for bookmark in bookmarks:
+        url = bookmark.url.lower().strip('/')
+        if url in urls_seen:
+            duplicates += 1
+        urls_seen.add(url)
+    
+    # Sort by count
+    top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:10]
+    top_domains = sorted(domains.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    return {
+        "total": len(bookmarks),
+        "categories": dict(top_categories),
+        "domains": dict(top_domains),
+        "duplicates": duplicates,
+        "unique_domains": len(domains),
+        "unique_categories": len(categories)
+    }
 
 def get_model_name(selected_model: str) -> str:
     """Map UI model names to actual OpenAI API model names"""
@@ -291,7 +531,7 @@ def extract_json_from_response(text: str) -> Dict[str, Any]:
 
 # System prompt for hierarchical categorization
 CATEGORIZATION_SYSTEM_PROMPT = """
-You are a professional bookmark organization expert using the powerful GPT-4o-mini model. Your task is to create a clean, intuitive, hierarchical organization system for the user's bookmarks.
+You are a professional bookmark organization expert. Your task is to create a clean, intuitive, hierarchical organization system for the user's bookmarks.
 
 IMPORTANT: Analyze the bookmarks deeply to understand their content, purpose, and relationships. Look for common themes, topics, domains, and usage patterns.
 
@@ -596,6 +836,144 @@ async def get_result(session_id: str):
     del progress_store[result_key]
     
     return {"bookmarks": result}
+
+@app.post("/api/chat")
+async def chat_with_ai(request: ChatRequest):
+    """Unified chat interface for AI assistant"""
+    try:
+        if not request.apiKey:
+            raise HTTPException(status_code=400, detail="API key required")
+        
+        if not request.message.strip():
+            raise HTTPException(status_code=400, detail="Message cannot be empty")
+        
+        logger.info(f"Processing chat message: {request.message[:100]}...")
+        
+        # Detect intent
+        intent_result = await detect_intent(request.message, request.apiKey, request.chatModel)
+        intent = intent_result.get("intent", "general")
+        entities = intent_result.get("entities", {})
+        
+        logger.info(f"Detected intent: {intent} with confidence: {intent_result.get('confidence', 0)}")
+        
+        # Fallback intent detection for simple cases
+        message_lower = request.message.lower()
+        if intent == "general" and any(word in message_lower for word in ["find", "search", "show", "get", "travel", "work", "coding", "javascript", "react", "vue", "python", "bookmarks"]):
+            logger.info("Overriding intent to 'search' based on keywords")
+            intent = "search"
+            entities["query"] = request.message
+        
+        # Route based on intent
+        if intent == "search":
+            query = entities.get("query", request.message)
+            results = await search_bookmarks_with_ai(query, request.bookmarks, request.apiKey, request.chatModel)
+            
+            if results:
+                response_text = f"Found {len(results)} bookmarks matching '{query}'. Here are the most relevant ones:"
+                suggestions = ["Show all results", "Refine search", "Organize these results"]
+            else:
+                response_text = f"No bookmarks found matching '{query}'. Try different search terms or check if you have bookmarks loaded."
+                suggestions = ["View all bookmarks", "Try different keywords", "Upload more bookmarks"]
+            
+            return ChatResponse(
+                response=response_text,
+                intent=intent,
+                action="search_results",
+                results=results,
+                suggestions=suggestions
+            )
+        
+        elif intent == "reorganize":
+            bookmark_count = len(request.bookmarks)
+            if bookmark_count == 0:
+                response_text = "You don't have any bookmarks to reorganize. Please upload some bookmarks first."
+                suggestions = ["Upload bookmarks", "Learn about bookmark formats"]
+            else:
+                response_text = f"I can help you reorganize your {bookmark_count} bookmarks! This will use AI to create intelligent categories and subcategories. Would you like to start the reorganization process?"
+                suggestions = ["Start reorganization", "Preview categories", "Learn about reorganization"]
+            
+            return ChatResponse(
+                response=response_text,
+                intent=intent,
+                action="reorganize_prompt",
+                suggestions=suggestions
+            )
+        
+        elif intent == "stats":
+            stats = await generate_bookmark_stats(request.bookmarks)
+            
+            if stats["total"] == 0:
+                response_text = "You don't have any bookmarks loaded. Upload your bookmarks to see statistics."
+                suggestions = ["Upload bookmarks", "Learn about supported formats"]
+            else:
+                top_category = max(stats["categories"].items(), key=lambda x: x[1]) if stats["categories"] else ("None", 0)
+                top_domain = max(stats["domains"].items(), key=lambda x: x[1]) if stats["domains"] else ("None", 0)
+                
+                response_text = f"""📊 **Bookmark Collection Stats:**
+
+**Total Bookmarks:** {stats['total']}
+**Categories:** {stats['unique_categories']} ({top_category[0]} has {top_category[1]} bookmarks)
+**Unique Domains:** {stats['unique_domains']} ({top_domain[0]} appears {top_domain[1]} times)
+**Potential Duplicates:** {stats['duplicates']} bookmarks
+
+Your collection is {'well-organized' if stats['unique_categories'] > 5 else 'ready for organization'}!"""
+                
+                suggestions = ["Show detailed breakdown", "Find duplicates", "Reorganize bookmarks"]
+            
+            return ChatResponse(
+                response=response_text,
+                intent=intent,
+                action="show_stats",
+                suggestions=suggestions
+            )
+        
+        elif intent == "export":
+            bookmark_count = len(request.bookmarks)
+            if bookmark_count == 0:
+                response_text = "You don't have any bookmarks to export. Upload bookmarks first."
+                suggestions = ["Upload bookmarks"]
+            else:
+                response_text = f"I can help you export your {bookmark_count} bookmarks in various formats including HTML (for browsers), JSON, or CSV."
+                suggestions = ["Export as HTML", "Export as JSON", "Export as CSV"]
+            
+            return ChatResponse(
+                response=response_text,
+                intent=intent,
+                action="export_options",
+                suggestions=suggestions
+            )
+        
+        else:  # general intent
+            # Provide general help and information
+            bookmark_count = len(request.bookmarks)
+            
+            if "help" in request.message.lower():
+                response_text = f"""🐼 **PinPanda AI Assistant Help**
+
+I can help you with:
+• **Search**: "Find my React bookmarks" or "Show me coding resources"
+• **Organize**: "Reorganize my bookmarks" or "Clean up my collection"  
+• **Stats**: "How many bookmarks do I have?" or "Show my collection stats"
+• **Export**: "Export my bookmarks" or "Download as HTML"
+
+You currently have {bookmark_count} bookmarks loaded."""
+                
+                suggestions = ["Search bookmarks", "Reorganize collection", "View statistics", "Export bookmarks"]
+            
+            else:
+                # General conversational response
+                response_text = f"I'm your AI bookmark assistant! I can help you search, organize, and manage your {bookmark_count} bookmarks. What would you like to do?"
+                suggestions = ["Search for bookmarks", "Reorganize my collection", "Show me statistics"]
+            
+            return ChatResponse(
+                response=response_text,
+                intent=intent,
+                suggestions=suggestions
+            )
+    
+    except Exception as e:
+        logger.error(f"Chat processing error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
 
 @app.get("/api/health")
 async def health_check():

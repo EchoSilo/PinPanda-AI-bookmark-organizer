@@ -174,7 +174,8 @@ async function testLLMConnection(apiKey, model) {
 function saveAISettings() {
     const settings = {
         aiEnabled: document.getElementById('ai-enabled')?.checked || false,
-        aiModel: document.getElementById('ai-model')?.value || 'gpt-5-mini',
+        reorganizeModel: document.getElementById('reorganize-model')?.value || 'gpt-5-mini',
+        chatModel: document.getElementById('chat-model')?.value || 'gpt-5-nano',
         apiKey: document.getElementById('openai-api-key')?.value || '',
         categorizationDepth: document.getElementById('categorization-depth')?.value || 'balanced'
     };
@@ -196,12 +197,14 @@ function loadAISettings() {
             // Use setTimeout to ensure DOM is ready
             setTimeout(() => {
                 const aiEnabled = document.getElementById('ai-enabled');
-                const aiModel = document.getElementById('ai-model');
+                const reorganizeModel = document.getElementById('reorganize-model');
+                const chatModel = document.getElementById('chat-model');
                 const apiKey = document.getElementById('openai-api-key');
                 const categorizationDepth = document.getElementById('categorization-depth');
                 
                 if (aiEnabled) aiEnabled.checked = settings.aiEnabled;
-                if (aiModel) aiModel.value = settings.aiModel;
+                if (reorganizeModel) reorganizeModel.value = settings.reorganizeModel || settings.aiModel || 'gpt-5-mini';
+                if (chatModel) chatModel.value = settings.chatModel || 'gpt-5-nano';
                 if (apiKey) apiKey.value = settings.apiKey;
                 if (categorizationDepth) categorizationDepth.value = settings.categorizationDepth;
                 
@@ -518,7 +521,9 @@ async function testAIConnection() {
         return { connected: false, error: 'No API key configured' };
     }
     
-    return await testLLMConnection(settings.apiKey, settings.aiModel);
+    // Use chat model for testing since it's used for the AI assistant
+    const model = settings.chatModel || settings.reorganizeModel || settings.aiModel || 'gpt-4o-mini';
+    return await testLLMConnection(settings.apiKey, model);
 }
 
 async function testConnectionAfterKeyChange() {
@@ -536,7 +541,8 @@ async function testConnectionAfterKeyChange() {
     resultElement.textContent = '⏳ Testing connection to OpenAI...';
     
     try {
-        const result = await testLLMConnection(settings.apiKey, settings.aiModel);
+        const model = settings.chatModel || settings.reorganizeModel || settings.aiModel || 'gpt-4o-mini';
+        const result = await testLLMConnection(settings.apiKey, model);
         
         if (result.connected) {
             statusElement.className = 'llm-connection-status success';
@@ -576,6 +582,7 @@ function setupEventListeners() {
     if (aiInput) {
         aiInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 sendAIMessage();
             }
         });
@@ -1087,6 +1094,26 @@ function changePageSize(newSize) {
     renderBookmarks(currentBookmarks);
 }
 
+function updatePagination() {
+    const totalPages = getTotalPages(currentBookmarks.length);
+    
+    // Reset to page 1 if current page is beyond available pages
+    if (currentPage > totalPages && totalPages > 0) {
+        currentPage = 1;
+    }
+    
+    // Remove existing pagination
+    const existingPagination = document.querySelector('.pagination-container');
+    if (existingPagination) {
+        existingPagination.remove();
+    }
+    
+    // Re-render pagination
+    if (currentBookmarks.length > 0) {
+        renderPagination(currentBookmarks.length, totalPages);
+    }
+}
+
 function handleSort(field) {
     if (sortField === field) {
         sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -1341,14 +1368,20 @@ function closeAIPanel() {
     backdrop.classList.remove('show');
 }
 
-function sendAIMessage() {
+async function sendAIMessage() {
     const aiInput = document.getElementById('ai-input');
     const aiChat = document.getElementById('ai-chat');
     
     if (!aiInput || !aiChat) return;
     const message = aiInput.value.trim();
-    
     if (!message) return;
+    
+    // Check AI settings
+    const aiSettings = loadAISettings();
+    if (!aiSettings || !aiSettings.aiEnabled || !aiSettings.apiKey) {
+        showAIError('Please configure your AI settings first.');
+        return;
+    }
     
     // Add user message
     const userMessage = document.createElement('div');
@@ -1356,28 +1389,143 @@ function sendAIMessage() {
     userMessage.innerHTML = `<div class="message user-message">${message}</div>`;
     aiChat.appendChild(userMessage);
     
-    aiInput.value = '';
+    // Add typing indicator
+    const typingIndicator = document.createElement('div');
+    typingIndicator.className = 'ai-message typing-indicator';
+    typingIndicator.innerHTML = `<div class="message bot-message">🐼 Thinking...</div>`;
+    aiChat.appendChild(typingIndicator);
     
-    // Simulate AI response
-    setTimeout(() => {
-        const responses = [
-            "I found 5 React development bookmarks in your collection. Would you like me to show them?",
-            "Based on your search, here are the most relevant productivity tools you've saved.",
-            "I can help you organize these bookmarks into better categories. Should I suggest some improvements?",
-            "You have quite a few AI and machine learning resources. Here are the top ones based on your query."
-        ];
+    aiInput.value = '';
+    aiChat.scrollTop = aiChat.scrollHeight;
+    
+    try {
+        // Send to backend chat endpoint
+        const backendUrl = getBackendUrl();
+        console.log(`Sending chat request with ${bookmarks.length} bookmarks to backend:`, backendUrl);
         
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        const response = await fetch(`${backendUrl}/api/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                bookmarks: bookmarks || [],
+                apiKey: aiSettings.apiKey,
+                chatModel: aiSettings.chatModel || 'gpt-4o-mini',
+                context: {
+                    currentCategory: getCurrentCategory(),
+                    searchQuery: getLastSearchQuery(),
+                    bookmarkCount: bookmarks.length
+                }
+            })
+        });
         
+        // Remove typing indicator
+        if (typingIndicator.parentNode) {
+            typingIndicator.parentNode.removeChild(typingIndicator);
+        }
+        
+        if (!response.ok) {
+            throw new Error(`Chat API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Add bot response
         const botMessage = document.createElement('div');
         botMessage.className = 'ai-message';
-        botMessage.innerHTML = `<div class="message bot-message">${randomResponse}</div>`;
+        
+        let responseHTML = `<div class="message bot-message">${data.response}</div>`;
+        
+        // Add suggestions if available
+        if (data.suggestions && data.suggestions.length > 0) {
+            responseHTML += '<div class="ai-suggestions">';
+            data.suggestions.forEach(suggestion => {
+                responseHTML += `<button class="suggestion-btn" onclick="handleSuggestionClick('${suggestion.replace(/'/g, "\\\'")}')">${suggestion}</button>`;
+            });
+            responseHTML += '</div>';
+        }
+        
+        // Add results if available (for search intent)
+        if (data.results && data.results.length > 0) {
+            responseHTML += '<div class="search-results-preview">';
+            data.results.slice(0, 5).forEach(bookmark => {
+                responseHTML += `
+                    <div class="result-item" onclick="openBookmark('${bookmark.url}')">
+                        <div class="result-title">${bookmark.title}</div>
+                        <div class="result-url">${bookmark.url}</div>
+                        <div class="result-category">${bookmark.category || 'Uncategorized'}</div>
+                    </div>
+                `;
+            });
+            if (data.results.length > 5) {
+                responseHTML += `<div class="result-more">...and ${data.results.length - 5} more results</div>`;
+            }
+            responseHTML += '</div>';
+        }
+        
+        botMessage.innerHTML = responseHTML;
         aiChat.appendChild(botMessage);
         
+        // Handle specific actions
+        if (data.action === 'search_results' && data.results) {
+            // Update main view with search results
+            setTimeout(() => {
+                currentBookmarks = data.results;
+                updatePagination();
+                renderBookmarks();
+                const contextTitle = document.getElementById('context-title');
+                if (contextTitle) {
+                    contextTitle.textContent = `AI Search Results (${data.results.length})`;
+                }
+            }, 500);
+        }
+        
         aiChat.scrollTop = aiChat.scrollHeight;
-    }, 1000);
+        
+    } catch (error) {
+        console.error('AI chat error:', error);
+        
+        // Remove typing indicator
+        if (typingIndicator.parentNode) {
+            typingIndicator.parentNode.removeChild(typingIndicator);
+        }
+        
+        showAIError(`Sorry, I encountered an error: ${error.message}. Currently have ${bookmarks.length} bookmarks loaded.`);
+    }
+}
+
+function showAIError(errorMessage) {
+    const aiChat = document.getElementById('ai-chat');
+    if (!aiChat) return;
     
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'ai-message';
+    errorDiv.innerHTML = `<div class="message bot-message error-message">❌ ${errorMessage}</div>`;
+    aiChat.appendChild(errorDiv);
     aiChat.scrollTop = aiChat.scrollHeight;
+}
+
+function handleSuggestionClick(suggestion) {
+    const aiInput = document.getElementById('ai-input');
+    if (aiInput) {
+        aiInput.value = suggestion;
+        sendAIMessage();
+    }
+}
+
+function getCurrentCategory() {
+    const contextTitle = document.getElementById('context-title');
+    if (contextTitle && contextTitle.textContent !== 'All Bookmarks') {
+        return contextTitle.textContent;
+    }
+    return null;
+}
+
+function getLastSearchQuery() {
+    const searchInput = document.getElementById('search-input');
+    return searchInput ? searchInput.value.trim() : null;
 }
 
 // Sidebar Controls
@@ -1487,7 +1635,7 @@ async function startReorganization() {
             body: JSON.stringify({
                 bookmarks: bookmarks,
                 apiKey: aiSettings.apiKey,
-                model: aiSettings.aiModel || 'gpt-5-mini',
+                model: aiSettings.reorganizeModel || 'gpt-5-mini',
                 categorizationDepth: depth,
                 sessionId: reorganizationSessionId
             })
@@ -1961,12 +2109,14 @@ function switchSettingsTab(tabName) {
             const settings = JSON.parse(localStorage.getItem('pinpanda_ai_settings') || '{}');
             
             const aiEnabled = document.getElementById('ai-enabled');
-            const aiModel = document.getElementById('ai-model');
+            const reorganizeModel = document.getElementById('reorganize-model');
+            const chatModel = document.getElementById('chat-model');
             const apiKey = document.getElementById('openai-api-key');
             const categorizationDepth = document.getElementById('categorization-depth');
             
             if (aiEnabled && settings.aiEnabled !== undefined) aiEnabled.checked = settings.aiEnabled;
-            if (aiModel && settings.aiModel) aiModel.value = settings.aiModel;
+            if (reorganizeModel && (settings.reorganizeModel || settings.aiModel)) reorganizeModel.value = settings.reorganizeModel || settings.aiModel;
+            if (chatModel && settings.chatModel) chatModel.value = settings.chatModel;
             if (apiKey && settings.apiKey) apiKey.value = settings.apiKey;
             if (categorizationDepth && settings.categorizationDepth) categorizationDepth.value = settings.categorizationDepth;
         }, 50);

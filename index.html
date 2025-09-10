@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="password-save" content="disable">
     <title>PinPanda Integrated Bookmark Manager - Prototype</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -130,8 +131,8 @@
             </div>
             
             <div class="ai-input-container">
-                <input type="text" id="ai-input" placeholder="Ask about your bookmarks..." />
-                <button onclick="sendAIMessage()">Send</button>
+                <input type="text" id="ai-input" placeholder="Ask about your bookmarks..." autocomplete="off" />
+                <button type="button" onclick="sendAIMessage()">Send</button>
             </div>
         </div>
 
@@ -314,8 +315,8 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="ai-model">AI Model</label>
-                                <select id="ai-model" class="form-select">
+                                <label for="reorganize-model">Reorganization AI Model</label>
+                                <select id="reorganize-model" class="form-select">
                                     <optgroup label="GPT-5 Series (Latest)">
                                         <option value="gpt-5">GPT-5 (Most Advanced)</option>
                                         <option value="gpt-5-mini" selected>GPT-5 Mini (Balanced)</option>
@@ -333,11 +334,33 @@
                                         <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
                                     </optgroup>
                                 </select>
-                                <p class="form-description">GPT-5 Mini offers the best balance of performance and cost for bookmark categorization</p>
+                                <p class="form-description">Model used for bookmark reorganization and categorization</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="chat-model">AI Assistant Chat Model</label>
+                                <select id="chat-model" class="form-select">
+                                    <optgroup label="GPT-5 Series (Latest)">
+                                        <option value="gpt-5">GPT-5 (Most Advanced)</option>
+                                        <option value="gpt-5-mini">GPT-5 Mini (Balanced)</option>
+                                        <option value="gpt-5-nano" selected>GPT-5 Nano (Fastest)</option>
+                                    </optgroup>
+                                    <optgroup label="Reasoning Models">
+                                        <option value="o3-mini">o3-mini (Deep Reasoning)</option>
+                                    </optgroup>
+                                    <optgroup label="GPT-4 Series">
+                                        <option value="gpt-4o">GPT-4o (Multimodal)</option>
+                                        <option value="gpt-4o-mini">GPT-4o Mini (Cost-Effective)</option>
+                                        <option value="gpt-4.1">GPT-4.1 (Coding Specialist)</option>
+                                    </optgroup>
+                                    <optgroup label="Legacy">
+                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
+                                    </optgroup>
+                                </select>
+                                <p class="form-description">Model used for AI assistant chat and bookmark search</p>
                             </div>
                             <div class="form-group">
                                 <label for="openai-api-key">OpenAI API Key</label>
-                                <input type="password" id="openai-api-key" class="form-input" placeholder="sk-..." onchange="testConnectionAfterKeyChange()">
+                                <input type="password" id="openai-api-key" class="form-input" placeholder="sk-..." onchange="testConnectionAfterKeyChange()" autocomplete="off" data-form-type="other">
                                 <p class="form-description">Your API key is stored securely in your browser and never sent to our servers</p>
                                 <div class="llm-connection-status" id="llm-connection-status" style="display: none;">
                                     <span class="connection-result" id="connection-result"></span>

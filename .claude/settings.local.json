@@ -4,7 +4,10 @@
       "mcp__puppeteer__puppeteer_evaluate",
       "WebSearch",
       "WebFetch(domain:platform.openai.com)",
-      "WebFetch(domain:cookbook.openai.com)"
+      "WebFetch(domain:cookbook.openai.com)",
+      "Bash(python:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

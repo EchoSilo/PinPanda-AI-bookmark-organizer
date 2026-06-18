@@ -6,17 +6,70 @@ import asyncio
 import httpx
 import json
 import logging
+import sqlite3
+import os
 from datetime import datetime
 import uuid
 import re
 import math
 from urllib.parse import urlparse
 
+DB_PATH = os.environ.get("DB_PATH", "/app/data/pinpanda.db")
+
+
+def _load_env_file() -> None:
+    """Load KEY=VALUE pairs from a project-root .env into os.environ without overriding existing vars."""
+    candidates = [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+        os.path.join(os.getcwd(), ".env"),
+    ]
+    for path in candidates:
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    key, _, value = line.partition("=")
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    if key and key not in os.environ:
+                        os.environ[key] = value
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to read %s: %s", path, exc)
+        break
+
+
+_load_env_file()
+
+
+def get_env_api_key(model: str = "") -> str:
+    """Return an env-configured API key matching the requested model's provider."""
+    model_id = (model or "").lower()
+    if model_id.startswith("gemini"):
+        return os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")
+    return os.environ.get("OPENAI_API_KEY", "")
+
+
+def resolve_api_key(client_key: str, model: str = "") -> str:
+    """Prefer the client-supplied key; fall back to the env-configured one."""
+    if client_key and client_key.strip():
+        return client_key.strip()
+    return get_env_api_key(model)
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PinPanda AI Backend", version="1.0.0")
+
+@app.on_event("startup")
+async def startup_event():
+    init_db()
+    logger.info(f"SQLite database initialized at {DB_PATH}")
 
 # Add CORS middleware
 app.add_middleware(
@@ -59,7 +112,7 @@ class ProgressUpdate(BaseModel):
 class ReorganizeRequest(BaseModel):
     bookmarks: List[Bookmark]
     apiKey: str
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-5.4-mini"
     categorizationDepth: str = "balanced"
     sessionId: str
 
@@ -67,7 +120,7 @@ class ChatRequest(BaseModel):
     message: str
     bookmarks: List[Bookmark]
     apiKey: str
-    chatModel: str = "gpt-4o-mini"  # Separate model for chat/search
+    chatModel: str = "gpt-5.4-mini"
     context: Optional[Dict[str, Any]] = {}
 
 class ChatResponse(BaseModel):
@@ -77,8 +130,115 @@ class ChatResponse(BaseModel):
     results: Optional[List[Bookmark]] = None
     suggestions: Optional[List[str]] = None
 
+class BookmarkSyncRequest(BaseModel):
+    bookmarks: List[Bookmark]
+    source: str = "manual"
+
+class BookmarkSyncResponse(BaseModel):
+    added: int
+    updated: int
+    deleted: int
+    total: int
+
+class HistoryEntry(BaseModel):
+    id: int
+    bookmark_id: str
+    event: str
+    source: str
+    old_data: Optional[Dict] = None
+    new_data: Optional[Dict] = None
+    occurred_at: str
+
 # Global storage for progress tracking
 progress_store: Dict[str, ProgressUpdate] = {}
+
+# --- SQLite helpers ---
+
+def get_db_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+def init_db() -> None:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = get_db_connection()
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                id          TEXT PRIMARY KEY,
+                title       TEXT NOT NULL,
+                url         TEXT NOT NULL UNIQUE,
+                description TEXT DEFAULT '',
+                category    TEXT DEFAULT 'Uncategorized',
+                date_added  TEXT,
+                favicon     TEXT,
+                folder      TEXT,
+                updated_at  TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                bookmark_id TEXT NOT NULL,
+                event       TEXT NOT NULL,
+                source      TEXT NOT NULL,
+                old_data    TEXT,
+                new_data    TEXT,
+                occurred_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_history_bookmark_id ON history(bookmark_id);
+            CREATE INDEX IF NOT EXISTS idx_bookmarks_url ON bookmarks(url);
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+def record_history(
+    conn: sqlite3.Connection,
+    bookmark_id: str,
+    event: str,
+    source: str,
+    old_data: Optional[Dict] = None,
+    new_data: Optional[Dict] = None,
+) -> None:
+    conn.execute(
+        """INSERT INTO history (bookmark_id, event, source, old_data, new_data, occurred_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (
+            bookmark_id,
+            event,
+            source,
+            json.dumps(old_data) if old_data else None,
+            json.dumps(new_data) if new_data else None,
+            datetime.utcnow().isoformat(),
+        ),
+    )
+
+def upsert_bookmark(conn: sqlite3.Connection, bm: Dict, source: str) -> str:
+    """Insert or update a bookmark by URL. Returns 'add', 'update', or 'category_change'."""
+    now = datetime.utcnow().isoformat()
+    existing = conn.execute("SELECT * FROM bookmarks WHERE url = ?", (bm["url"],)).fetchone()
+    if existing is None:
+        conn.execute(
+            """INSERT INTO bookmarks (id, title, url, description, category,
+               date_added, favicon, folder, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (bm["id"], bm["title"], bm["url"], bm.get("description", ""),
+             bm.get("category", "Uncategorized"), bm.get("dateAdded"),
+             bm.get("favicon"), bm.get("folder"), now),
+        )
+        record_history(conn, bm["id"], "add", source, new_data=bm)
+        return "add"
+    else:
+        old = dict(existing)
+        event = "category_change" if old["category"] != bm.get("category", "Uncategorized") else "update"
+        conn.execute(
+            """UPDATE bookmarks SET title=?, description=?, category=?,
+               date_added=?, favicon=?, folder=?, updated_at=? WHERE url=?""",
+            (bm["title"], bm.get("description", ""), bm.get("category", "Uncategorized"),
+             bm.get("dateAdded"), bm.get("favicon"), bm.get("folder"), now, bm["url"]),
+        )
+        record_history(conn, old["id"], event, source, old_data=old, new_data=bm)
+        return event
 
 # Processing configuration
 BATCH_SIZE = 75  # Optimized batch size
@@ -314,21 +474,33 @@ async def generate_bookmark_stats(bookmarks: List[Bookmark]) -> Dict[str, Any]:
     }
 
 def get_model_name(selected_model: str) -> str:
-    """Map UI model names to actual OpenAI API model names"""
+    """Map UI model names to API model names"""
     model_map = {
-        'gpt-5': 'gpt-4o-mini',  # Map to available model
-        'gpt-5-mini': 'gpt-4o-mini',
-        'gpt-5-nano': 'gpt-4o-mini',
-        'o3-mini': 'gpt-4o-mini',  # Map to available model
+        'gpt-5.5': 'gpt-5.5',
+        'gpt-5.5-pro': 'gpt-5.5-pro',
+        'gpt-5.4-mini': 'gpt-5.4-mini',
+        'gpt-5.4-nano': 'gpt-5.4-nano',
+        'gpt-5': 'gpt-5',
+        'gpt-5-mini': 'gpt-5-mini',
+        'gpt-5-nano': 'gpt-5-nano',
+        'o3': 'o3',
+        'o3-mini': 'o3-mini',
         'gpt-4o': 'gpt-4o',
+        'gpt-4.1': 'gpt-4.1',
         'gpt-4o-mini': 'gpt-4o-mini',
-        'gpt-4.1': 'gpt-4o',  # Map to available model
         'gpt-3.5-turbo': 'gpt-3.5-turbo',
         # Legacy mappings
         'gpt-3.5': 'gpt-3.5-turbo',
-        'gpt-4': 'gpt-4o'
+        'gpt-4': 'gpt-4o',
+        # Gemini — pass through as-is
+        'gemini-3.5-flash': 'gemini-3.5-flash',
+        'gemini-3.1-pro-preview': 'gemini-3.1-pro-preview',
+        'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite',
+        'gemini-2.5-pro': 'gemini-2.5-pro',
+        'gemini-2.5-flash': 'gemini-2.5-flash',
+        'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
     }
-    return model_map.get(selected_model, 'gpt-4o-mini')
+    return model_map.get(selected_model, selected_model or 'gpt-5.4-mini')
 
 # Advanced utility functions
 def estimate_token_count(text: str) -> int:
@@ -790,7 +962,8 @@ async def start_reorganization(request: ReorganizeRequest, background_tasks: Bac
         # Validate request
         if not request.bookmarks:
             raise HTTPException(status_code=400, detail="No bookmarks provided")
-        
+
+        request.apiKey = resolve_api_key(request.apiKey, request.model)
         if not request.apiKey:
             raise HTTPException(status_code=400, detail="API key required")
         
@@ -841,6 +1014,7 @@ async def get_result(session_id: str):
 async def chat_with_ai(request: ChatRequest):
     """Unified chat interface for AI assistant"""
     try:
+        request.apiKey = resolve_api_key(request.apiKey, request.chatModel)
         if not request.apiKey:
             raise HTTPException(status_code=400, detail="API key required")
         
@@ -975,10 +1149,202 @@ You currently have {bookmark_count} bookmarks loaded."""
         logger.error(f"Chat processing error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
 
+@app.get("/api/chrome-bookmarks")
+async def get_chrome_bookmarks():
+    """Read Chrome bookmarks file from the local filesystem"""
+    import platform
+    import os
+
+    docker_path = "/chrome-bookmarks/Bookmarks"
+    if os.path.exists(docker_path):
+        path = docker_path
+    else:
+        system = platform.system()
+        if system == "Windows":
+            base = os.environ.get("LOCALAPPDATA", "")
+            path = os.path.join(base, "Google", "Chrome", "User Data", "Default", "Bookmarks")
+        elif system == "Darwin":
+            path = os.path.expanduser("~/Library/Application Support/Google/Chrome/Default/Bookmarks")
+        else:
+            path = os.path.expanduser("~/.config/google-chrome/Default/Bookmarks")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"Chrome bookmarks file not found at: {path}")
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read Chrome bookmarks: {str(e)}")
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "has_openai_key": bool(os.environ.get("OPENAI_API_KEY")),
+        "has_gemini_key": bool(os.environ.get("GOOGLE_GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")),
+    }
+
+
+async def _probe_openai(api_key: str) -> Dict[str, Any]:
+    model = "gpt-4o-mini"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+                json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1, "temperature": 0},
+            )
+        if resp.status_code == 200:
+            return {"ok": True, "model": model}
+        err = resp.json().get("error", {}).get("message", resp.text)
+        return {"ok": False, "error": f"{resp.status_code}: {err}"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+async def _probe_gemini(api_key: str) -> Dict[str, Any]:
+    model = "gemini-2.5-flash"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                params={"key": api_key},
+                headers={"Content-Type": "application/json"},
+                json={"contents": [{"parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 1, "temperature": 0}},
+            )
+        if resp.status_code == 200:
+            return {"ok": True, "model": model}
+        err = resp.json().get("error", {}).get("message", resp.text)
+        return {"ok": False, "error": f"{resp.status_code}: {err}"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@app.get("/api/test-keys")
+async def test_keys():
+    """Make a real test call against each .env-configured provider key.
+
+    Returns per-provider status: configured (key present), ok (test call succeeded),
+    model used, and error message on failure. Use to drive a trustworthy "AI Ready" indicator.
+    """
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    gemini_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")
+
+    tasks = []
+    if openai_key:
+        tasks.append(("openai", _probe_openai(openai_key)))
+    if gemini_key:
+        tasks.append(("gemini", _probe_gemini(gemini_key)))
+
+    results: Dict[str, Any] = {
+        "openai": {"configured": bool(openai_key), "ok": False, "error": None, "model": None},
+        "gemini": {"configured": bool(gemini_key), "ok": False, "error": None, "model": None},
+    }
+
+    if tasks:
+        outcomes = await asyncio.gather(*(t[1] for t in tasks), return_exceptions=True)
+        for (provider, _), outcome in zip(tasks, outcomes):
+            if isinstance(outcome, Exception):
+                results[provider].update({"ok": False, "error": str(outcome)})
+            else:
+                results[provider].update(outcome)
+
+    any_configured = results["openai"]["configured"] or results["gemini"]["configured"]
+    all_pass = all(p["ok"] for p in results.values() if p["configured"])
+    return {"providers": results, "any_configured": any_configured, "all_pass": all_pass and any_configured}
+
+@app.get("/api/bookmarks", response_model=List[Bookmark])
+async def get_bookmarks():
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, title, url, description, category, date_added, favicon, folder FROM bookmarks ORDER BY updated_at DESC"
+        ).fetchall()
+        return [
+            Bookmark(
+                id=r["id"], title=r["title"], url=r["url"],
+                description=r["description"] or "", category=r["category"] or "Uncategorized",
+                dateAdded=r["date_added"], favicon=r["favicon"], folder=r["folder"],
+            )
+            for r in rows
+        ]
+    finally:
+        conn.close()
+
+@app.post("/api/bookmarks/sync", response_model=BookmarkSyncResponse)
+async def sync_bookmarks(request: BookmarkSyncRequest):
+    if not request.bookmarks:
+        return BookmarkSyncResponse(added=0, updated=0, deleted=0, total=0)
+    added = updated = 0
+    conn = get_db_connection()
+    try:
+        for bm in request.bookmarks:
+            bm_dict = {
+                "id": bm.id or str(uuid.uuid4()),
+                "title": bm.title, "url": bm.url,
+                "description": bm.description or "",
+                "category": bm.category or "Uncategorized",
+                "dateAdded": bm.dateAdded,
+                "favicon": bm.favicon, "folder": bm.folder,
+            }
+            event = upsert_bookmark(conn, bm_dict, request.source)
+            if event == "add":
+                added += 1
+            else:
+                updated += 1
+        conn.commit()
+        total = conn.execute("SELECT COUNT(*) FROM bookmarks").fetchone()[0]
+        return BookmarkSyncResponse(added=added, updated=updated, deleted=0, total=total)
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Sync error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/bookmarks/{bookmark_id}")
+async def delete_bookmark(bookmark_id: str):
+    conn = get_db_connection()
+    try:
+        row = conn.execute("SELECT * FROM bookmarks WHERE id = ?", (bookmark_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Bookmark not found")
+        record_history(conn, bookmark_id, "delete", "manual", old_data=dict(row))
+        conn.execute("DELETE FROM bookmarks WHERE id = ?", (bookmark_id,))
+        conn.commit()
+        return {"deleted": True, "id": bookmark_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Delete error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/history", response_model=List[HistoryEntry])
+async def get_history(limit: int = 100, offset: int = 0):
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM history ORDER BY occurred_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        return [
+            HistoryEntry(
+                id=r["id"], bookmark_id=r["bookmark_id"],
+                event=r["event"], source=r["source"],
+                old_data=json.loads(r["old_data"]) if r["old_data"] else None,
+                new_data=json.loads(r["new_data"]) if r["new_data"] else None,
+                occurred_at=r["occurred_at"],
+            )
+            for r in rows
+        ]
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     import uvicorn

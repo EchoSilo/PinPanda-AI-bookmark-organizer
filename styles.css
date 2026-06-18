@@ -1,3 +1,6 @@
+/* Utility */
+.hidden { display: none !important; }
+
 /* Reset and Base Styles */
 * {
     margin: 0;
@@ -1266,6 +1269,272 @@ body {
 
 .upload-button:hover {
     background-color: #218838;
+}
+
+.upload-chrome-divider {
+    margin-top: 12px;
+}
+
+.upload-button-chrome {
+    margin-top: 8px;
+    background-color: #4285f4;
+}
+
+.upload-button-chrome:hover {
+    background-color: #2b6fd4;
+}
+
+/* Import Modal Tabs */
+.import-tabs {
+    display: flex;
+    border-bottom: 1px solid #e9ecef;
+    padding: 0 24px;
+    background: #fff;
+}
+
+.import-tab-btn {
+    padding: 12px 18px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6c757d;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.import-tab-btn:hover {
+    color: #343a40;
+}
+
+.import-tab-btn.active {
+    color: #28a745;
+    border-bottom-color: #28a745;
+}
+
+.import-tab-content {
+    display: none;
+}
+
+.import-tab-content.active {
+    display: block;
+}
+
+/* Chrome Sync */
+.chrome-sync-status {
+    padding: 10px 14px;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    font-size: 14px;
+    color: #495057;
+    min-height: 40px;
+}
+
+.chrome-sync-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Import Review Modal */
+.modal-content--wide {
+    max-width: 700px;
+    width: 95vw;
+}
+
+.import-review-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
+}
+
+.import-review-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.import-review-toolbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.import-review-body {
+    padding: 0;
+}
+
+.import-review-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.import-review-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 24px;
+    border-bottom: 1px solid #f1f3f5;
+    font-size: 13px;
+    transition: background 0.1s;
+}
+
+.import-review-row:last-child {
+    border-bottom: none;
+}
+
+.import-review-row:hover {
+    background: #f8f9fa;
+}
+
+.import-review-favicon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.import-review-favicon-placeholder {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.import-review-title {
+    flex: 1;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #212529;
+}
+
+.import-review-domain {
+    color: #6c757d;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+    flex-shrink: 0;
+}
+
+.import-review-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #adb5bd;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+
+.import-review-remove:hover {
+    color: #dc3545;
+}
+
+/* Bookmark Context Menu */
+.bookmark-context-menu {
+    position: absolute;
+    z-index: 9999;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    padding: 4px 0;
+    min-width: 200px;
+}
+
+.context-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    color: #343a40;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.context-menu-item:hover {
+    background: #f1f3f5;
+}
+
+.context-menu-danger {
+    color: #dc3545;
+}
+
+.context-menu-danger:hover {
+    background: #fff5f5;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: #e9ecef;
+    margin: 4px 0;
+}
+
+.context-menu-label {
+    padding: 4px 16px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.context-menu-categories {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.context-menu-category {
+    padding-left: 24px;
+}
+
+.context-menu-empty {
+    display: block;
+    padding: 6px 24px;
+    font-size: 12px;
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Grid card menu button */
+.bookmark-menu-btn--grid {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    padding: 2px 6px;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 4px;
+}
+
+.bookmark-item {
+    position: relative;
+}
+
+.bookmark-item:hover .bookmark-menu-btn--grid {
+    opacity: 1;
 }
 
 .browser-support {

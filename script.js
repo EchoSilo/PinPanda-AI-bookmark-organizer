@@ -13,43 +13,104 @@ function getFaviconUrl(url) {
 let categories = {};
 let bookmarks = [];
 
+// Import review state
+let importReviewBookmarks = [];
+let importReviewSource = 'file_import';
+
 // Local Storage Functions
-function saveBookmarksToStorage() {
+function ensureBookmarkIds() {
+    bookmarks.forEach(b => { if (!b.id) b.id = crypto.randomUUID(); });
+}
+
+function saveBookmarksToStorage(source = 'manual') {
     try {
+        ensureBookmarkIds();
         localStorage.setItem('pinpanda_bookmarks', JSON.stringify(bookmarks));
         localStorage.setItem('pinpanda_categories', JSON.stringify(categories));
         console.log('Bookmarks saved to storage');
+        syncToBackend(source);
     } catch (error) {
         console.error('Error saving bookmarks to storage:', error);
     }
 }
 
-function loadBookmarksFromStorage() {
+async function syncToBackend(source = 'manual') {
+    try {
+        const backendUrl = getBackendUrl();
+        const payload = {
+            bookmarks: bookmarks.map(b => ({
+                id: b.id,
+                title: b.title,
+                url: b.url,
+                description: b.description || '',
+                category: b.category || 'Uncategorized',
+                dateAdded: b.dateAdded instanceof Date ? b.dateAdded.toISOString() : (b.dateAdded || null),
+                favicon: b.favicon || null,
+                folder: b.folder || null
+            })),
+            source
+        };
+        const res = await fetch(`${backendUrl}/api/bookmarks/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            const delta = await res.json();
+            console.log(`Backend sync — added: ${delta.added}, updated: ${delta.updated}, total: ${delta.total}`);
+        }
+    } catch (err) {
+        console.debug('Backend sync skipped:', err.message);
+    }
+}
+
+async function loadBookmarksFromStorage() {
+    // 1. Load localStorage immediately for instant display
     try {
         const savedBookmarks = localStorage.getItem('pinpanda_bookmarks');
         const savedCategories = localStorage.getItem('pinpanda_categories');
-        
+
         if (savedBookmarks) {
             bookmarks = JSON.parse(savedBookmarks);
-            // Convert date strings back to Date objects
             bookmarks.forEach(bookmark => {
                 if (bookmark.dateAdded && typeof bookmark.dateAdded === 'string') {
                     bookmark.dateAdded = new Date(bookmark.dateAdded);
                 }
             });
-            console.log(`Loaded ${bookmarks.length} bookmarks from storage`);
+            console.log(`Loaded ${bookmarks.length} bookmarks from localStorage`);
         }
-        
         if (savedCategories) {
             categories = JSON.parse(savedCategories);
-            console.log('Loaded categories from storage');
         }
-        
-        return bookmarks.length > 0;
     } catch (error) {
-        console.error('Error loading bookmarks from storage:', error);
-        return false;
+        console.error('Error loading bookmarks from localStorage:', error);
     }
+
+    // 2. Hydrate from backend (source of truth) — non-blocking fallback
+    try {
+        const backendUrl = getBackendUrl();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`${backendUrl}/api/bookmarks`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok) {
+            const serverBookmarks = await res.json();
+            if (serverBookmarks.length > 0) {
+                bookmarks = serverBookmarks.map(b => ({
+                    ...b,
+                    dateAdded: b.dateAdded ? new Date(b.dateAdded) : new Date()
+                }));
+                categories = generateCategoriesFromBookmarks(bookmarks);
+                localStorage.setItem('pinpanda_bookmarks', JSON.stringify(bookmarks));
+                localStorage.setItem('pinpanda_categories', JSON.stringify(categories));
+                console.log(`Hydrated ${bookmarks.length} bookmarks from backend`);
+            }
+        }
+    } catch (err) {
+        console.info('Backend unavailable, using localStorage data:', err.message);
+    }
+
+    return bookmarks.length > 0;
 }
 
 function clearBookmarkStorage() {
@@ -74,6 +135,14 @@ function getBackendUrl() {
     return `${window.location.protocol}//${window.location.hostname}:8000`;
 }
 
+// Tracks whether the backend has a .env-configured API key, so the UI can enable
+// AI features without requiring the user to paste a key into Settings.
+const backendKeyStatus = { hasOpenAI: false, hasGemini: false };
+
+function backendHasAnyKey() {
+    return backendKeyStatus.hasOpenAI || backendKeyStatus.hasGemini;
+}
+
 async function testBackendConnection() {
     const backendUrl = getBackendUrl();
     try {
@@ -82,10 +151,13 @@ async function testBackendConnection() {
             method: 'GET',
             timeout: 5000
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('✅ Backend connection successful:', data);
+            backendKeyStatus.hasOpenAI = !!data.has_openai_key;
+            backendKeyStatus.hasGemini = !!data.has_gemini_key;
+            updateReorganizeButton();
             return { connected: true, url: backendUrl, status: data };
         } else {
             console.error('❌ Backend connection failed:', response.status);
@@ -97,42 +169,35 @@ async function testBackendConnection() {
     }
 }
 
-async function testLLMConnection(apiKey, model) {
+async function testLLMConnection(apiKey, model, settings) {
     if (!apiKey || !apiKey.trim()) {
         return { connected: false, error: 'No API key provided' };
     }
-    
+
     try {
         console.log('Testing LLM connection with model:', model);
-        
-        const isGPT5 = model.startsWith('gpt-5');
-        const endpoint = isGPT5 ? 'https://api.openai.com/v1/responses' : 'https://api.openai.com/v1/chat/completions';
-        
-        const requestBody = isGPT5 ? {
-            model: getModelName(model),
+
+        const modelId = getModelName(model);
+        const isGemini = isGeminiModel(modelId);
+        const { baseUrl } = getAPIConfig(modelId, settings || {});
+        const useResponsesAPI = !isGemini && modelId.startsWith('gpt-5');
+        const endpoint = useResponsesAPI ? `${baseUrl}/responses` : `${baseUrl}/chat/completions`;
+
+        const requestBody = useResponsesAPI ? {
+            model: modelId,
             input: 'Respond with exactly: "Connection test successful"',
-            text: {
-                verbosity: 'low'
-            },
-            reasoning: {
-                effort: 'minimal'
-            }
+            text: { verbosity: 'low' },
+            reasoning: { effort: 'minimal' }
         } : {
-            model: getModelName(model),
+            model: modelId,
             messages: [
-                {
-                    role: 'system',
-                    content: 'You are a test assistant.'
-                },
-                {
-                    role: 'user',
-                    content: 'Respond with exactly: "Connection test successful"'
-                }
+                { role: 'system', content: 'You are a test assistant.' },
+                { role: 'user', content: 'Respond with exactly: "Connection test successful"' }
             ],
             max_tokens: 10,
             temperature: 0
         };
-        
+
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -141,25 +206,25 @@ async function testLLMConnection(apiKey, model) {
             },
             body: JSON.stringify(requestBody)
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('✅ LLM connection successful:', data);
-            
-            const responseContent = isGPT5 
+
+            const responseContent = useResponsesAPI
                 ? data.text?.content || 'Success'
                 : data.choices[0]?.message?.content || 'Success';
-                
-            return { 
-                connected: true, 
-                model: getModelName(model),
+
+            return {
+                connected: true,
+                model: modelId,
                 response: responseContent
             };
         } else {
             const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
             console.error('❌ LLM connection failed:', response.status, errorData);
-            return { 
-                connected: false, 
+            return {
+                connected: false,
                 error: `API Error: ${errorData.error?.message || response.statusText}`,
                 status: response.status
             };
@@ -174,12 +239,13 @@ async function testLLMConnection(apiKey, model) {
 function saveAISettings() {
     const settings = {
         aiEnabled: document.getElementById('ai-enabled')?.checked || false,
-        reorganizeModel: document.getElementById('reorganize-model')?.value || 'gpt-5-mini',
-        chatModel: document.getElementById('chat-model')?.value || 'gpt-5-nano',
+        reorganizeModel: document.getElementById('reorganize-model')?.value || 'gpt-5.4-mini',
+        chatModel: document.getElementById('chat-model')?.value || 'gpt-5.4-nano',
         apiKey: document.getElementById('openai-api-key')?.value || '',
+        geminiApiKey: document.getElementById('gemini-api-key')?.value || '',
         categorizationDepth: document.getElementById('categorization-depth')?.value || 'balanced'
     };
-    
+
     try {
         localStorage.setItem('pinpanda_ai_settings', JSON.stringify(settings));
         console.log('AI settings saved');
@@ -193,38 +259,41 @@ function loadAISettings() {
         const savedSettings = localStorage.getItem('pinpanda_ai_settings');
         if (savedSettings) {
             const settings = JSON.parse(savedSettings);
-            
+
             // Use setTimeout to ensure DOM is ready
             setTimeout(() => {
                 const aiEnabled = document.getElementById('ai-enabled');
                 const reorganizeModel = document.getElementById('reorganize-model');
                 const chatModel = document.getElementById('chat-model');
                 const apiKey = document.getElementById('openai-api-key');
+                const geminiApiKey = document.getElementById('gemini-api-key');
                 const categorizationDepth = document.getElementById('categorization-depth');
-                
+
                 if (aiEnabled) aiEnabled.checked = settings.aiEnabled;
-                if (reorganizeModel) reorganizeModel.value = settings.reorganizeModel || settings.aiModel || 'gpt-5-mini';
-                if (chatModel) chatModel.value = settings.chatModel || 'gpt-5-nano';
+                if (reorganizeModel) reorganizeModel.value = settings.reorganizeModel || settings.aiModel || 'gpt-5.4-mini';
+                if (chatModel) chatModel.value = settings.chatModel || 'gpt-5.4-nano';
                 if (apiKey) apiKey.value = settings.apiKey;
+                if (geminiApiKey) geminiApiKey.value = settings.geminiApiKey || '';
                 if (categorizationDepth) categorizationDepth.value = settings.categorizationDepth;
-                
+
                 console.log('AI settings loaded');
             }, 100);
-            
+
             return settings;
         }
     } catch (error) {
         console.error('Error loading AI settings:', error);
     }
-    
+
     return null;
 }
 
-// OpenAI Integration
+// AI Integration
 async function categorizeBookmarksWithAI(bookmarks) {
     const settings = loadAISettings();
-    
-    if (!settings || !settings.aiEnabled || !settings.apiKey) {
+    const hasKey = settings?.apiKey || settings?.geminiApiKey;
+
+    if (!settings || !settings.aiEnabled || !hasKey) {
         console.log('AI categorization disabled or API key missing');
         return generateCategoriesFromBookmarks(bookmarks);
     }
@@ -265,15 +334,17 @@ async function categorizeBookmarksWithAI(bookmarks) {
 
 async function processBatchWithAI(bookmarks, settings) {
     const prompt = createCategorizationPrompt(bookmarks, settings.categorizationDepth);
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const modelId = getModelName(settings.reorganizeModel || settings.aiModel);
+    const { baseUrl, apiKey } = getAPIConfig(modelId, settings);
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${settings.apiKey}`
+            'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: getModelName(settings.aiModel),
+            model: modelId,
             messages: [
                 {
                     role: 'system',
@@ -285,17 +356,17 @@ async function processBatchWithAI(bookmarks, settings) {
                 }
             ],
             temperature: 0.3,
-            ...(settings.aiModel.startsWith('gpt-5') ? {} : { max_tokens: 2000 })
+            ...(modelId.startsWith('gpt-5') ? {} : { max_tokens: 2000 })
         })
     });
-    
+
     if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        throw new Error(`AI API error: ${response.status} ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     const content = data.choices[0].message.content;
-    
+
     try {
         return JSON.parse(content);
     } catch (parseError) {
@@ -330,22 +401,47 @@ Return a JSON array with the same number of items (${bookmarks.length}), each co
 }
 
 function getModelName(selectedModel) {
-    // Map UI model names to actual OpenAI API model names
     const modelMap = {
+        'gpt-5.5': 'gpt-5.5',
+        'gpt-5.5-pro': 'gpt-5.5-pro',
+        'gpt-5.4-mini': 'gpt-5.4-mini',
+        'gpt-5.4-nano': 'gpt-5.4-nano',
         'gpt-5': 'gpt-5',
         'gpt-5-mini': 'gpt-5-mini',
         'gpt-5-nano': 'gpt-5-nano',
+        'o3': 'o3',
         'o3-mini': 'o3-mini',
         'gpt-4o': 'gpt-4o',
-        'gpt-4o-mini': 'gpt-4o-mini',
         'gpt-4.1': 'gpt-4.1',
+        'gpt-4o-mini': 'gpt-4o-mini',
         'gpt-3.5-turbo': 'gpt-3.5-turbo',
-        // Legacy mappings for backward compatibility
         'gpt-3.5': 'gpt-3.5-turbo',
-        'gpt-4': 'gpt-4o'
+        'gpt-4': 'gpt-4o',
+        'gemini-3.5-flash': 'gemini-3.5-flash',
+        'gemini-3.1-pro-preview': 'gemini-3.1-pro-preview',
+        'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite',
+        'gemini-2.5-pro': 'gemini-2.5-pro',
+        'gemini-2.5-flash': 'gemini-2.5-flash',
+        'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
     };
-    
-    return modelMap[selectedModel] || 'gpt-5-mini';
+    return modelMap[selectedModel] || selectedModel || 'gpt-5.4-mini';
+}
+
+function isGeminiModel(model) {
+    return typeof model === 'string' && model.startsWith('gemini-');
+}
+
+function getAPIConfig(model, settings) {
+    if (isGeminiModel(model)) {
+        return {
+            baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+            apiKey: settings.geminiApiKey || ''
+        };
+    }
+    return {
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: settings.apiKey || ''
+    };
 }
 
 // State Management
@@ -379,61 +475,57 @@ const filterControls = document.getElementById('filter-controls');
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
-    // Load existing bookmarks from storage
-    loadBookmarksFromStorage();
-    
-    // Load AI settings
     loadAISettings();
-    
-    renderCategoryTree();
-    updateBookmarkDisplay();
     setupEventListeners();
-    
-    // Initialize sort dropdown
     updateSortDropdown();
-    
-    // Update reorganize button state
-    updateReorganizeButton();
-    
-    // Add click handler to AI status for testing
+
+    loadBookmarksFromStorage().then(() => {
+        renderCategoryTree();
+        updateBookmarkDisplay();
+        updateReorganizeButton();
+    });
+
     const aiStatus = document.getElementById('ai-connection-status');
     if (aiStatus) {
         aiStatus.addEventListener('click', () => {
             updateAIConnectionStatus('testing');
-            Promise.all([
-                testBackendConnection(),
-                testAIConnection()
-            ]).then(([backendResult, llmResult]) => {
-                updateAIConnectionStatus('ready', { backend: backendResult, llm: llmResult });
-            });
+            runAIStatusCheck();
         });
     }
-    
-    // Test connections and update indicators
+
     updateAIConnectionStatus('testing');
-    
-    // Test both backend and LLM connections
-    Promise.all([
-        testBackendConnection(),
-        testAIConnection()
-    ]).then(([backendResult, llmResult]) => {
-        updateAIConnectionStatus('ready', { backend: backendResult, llm: llmResult });
-    });
+    runAIStatusCheck();
 });
+
+// Runs backend connectivity + per-provider key probes in parallel and
+// pushes the aggregated result into the header indicator.
+async function runAIStatusCheck() {
+    const [backendResult, providers] = await Promise.all([
+        testBackendConnection(),
+        collectProviderStatus()
+    ]);
+    updateAIConnectionStatus('ready', { backend: backendResult, providers });
+}
 
 function updateReorganizeButton() {
     const reorganizeBtn = document.getElementById('reorganize-btn');
+    if (!reorganizeBtn) return;
     const aiSettings = loadAISettings();
-    
+    const hasUiKey = !!(aiSettings?.apiKey || aiSettings?.geminiApiKey);
+    const hasBackendKey = backendHasAnyKey();
+    const aiUsable = hasBackendKey || (aiSettings?.aiEnabled && hasUiKey);
+
     if (bookmarks.length === 0) {
         reorganizeBtn.disabled = true;
         reorganizeBtn.title = 'No bookmarks to reorganize';
-    } else if (!aiSettings || !aiSettings.aiEnabled || !aiSettings.apiKey) {
+    } else if (!aiUsable) {
         reorganizeBtn.disabled = true;
         reorganizeBtn.title = 'Please configure AI settings first';
     } else {
         reorganizeBtn.disabled = false;
-        reorganizeBtn.title = 'Reorganize bookmarks with AI';
+        reorganizeBtn.title = hasBackendKey
+            ? 'Reorganize bookmarks with AI (using server .env key)'
+            : 'Reorganize bookmarks with AI';
     }
 }
 
@@ -470,79 +562,173 @@ function updateAIConnectionStatus(status, results = null) {
     const statusElement = document.getElementById('ai-connection-status');
     const indicator = document.getElementById('connection-indicator');
     const text = document.getElementById('connection-text');
-    
+
     if (!statusElement || !indicator || !text) return;
-    
-    // Remove all status classes
+
     statusElement.classList.remove('connected', 'disconnected', 'testing');
-    
-    switch (status) {
-        case 'testing':
-            statusElement.classList.add('testing');
-            indicator.textContent = '⏳';
-            text.textContent = 'Testing AI...';
-            statusElement.title = 'Testing AI connections...';
-            break;
-            
-        case 'ready':
-            if (results) {
-                const backendOk = results.backend?.connected;
-                const llmOk = results.llm?.connected;
-                
-                if (backendOk && llmOk) {
-                    statusElement.classList.add('connected');
-                    indicator.textContent = '🤖';
-                    text.textContent = 'AI Ready';
-                    statusElement.title = `Backend: ✅ Connected\nLLM: ✅ ${results.llm.model || 'Connected'}`;
-                } else if (backendOk && !llmOk) {
-                    statusElement.classList.add('disconnected');
-                    indicator.textContent = '🔑';
-                    text.textContent = 'Need API Key';
-                    statusElement.title = `Backend: ✅ Connected\nLLM: ❌ ${results.llm.error || 'Not configured'}`;
-                } else {
-                    statusElement.classList.add('disconnected');
-                    indicator.textContent = '❌';
-                    text.textContent = 'AI Offline';
-                    statusElement.title = `Backend: ❌ ${results.backend.error || 'Disconnected'}\nLLM: ❌ ${results.llm.error || 'Not tested'}`;
-                }
-            }
-            break;
-            
-        default:
-            indicator.textContent = '⚡';
-            text.textContent = 'AI Status';
-            statusElement.title = 'AI status unknown';
+
+    if (status === 'testing') {
+        statusElement.classList.add('testing');
+        indicator.textContent = '⏳';
+        text.textContent = 'Testing AI...';
+        statusElement.title = 'Testing AI connections...';
+        return;
+    }
+
+    if (status !== 'ready' || !results) {
+        indicator.textContent = '⚡';
+        text.textContent = 'AI Status';
+        statusElement.title = 'AI status unknown';
+        return;
+    }
+
+    const backendOk = !!results.backend?.connected;
+    const providers = results.providers || [];
+    const tested = providers.filter(p => p.configured);
+    const failed = tested.filter(p => !p.ok);
+    const passed = tested.filter(p => p.ok);
+
+    const lines = [`Backend: ${backendOk ? '✅ Connected' : '❌ ' + (results.backend?.error || 'Disconnected')}`];
+    for (const p of providers) {
+        if (!p.configured) {
+            lines.push(`${p.provider} (${p.source}): — not configured`);
+        } else if (p.ok) {
+            lines.push(`${p.provider} (${p.source}): ✅ ${p.model || 'OK'}`);
+        } else {
+            lines.push(`${p.provider} (${p.source}): ❌ ${p.error || 'failed'}`);
+        }
+    }
+    statusElement.title = lines.join('\n');
+
+    if (!backendOk) {
+        statusElement.classList.add('disconnected');
+        indicator.textContent = '❌';
+        text.textContent = 'AI Offline';
+        return;
+    }
+
+    if (tested.length === 0) {
+        statusElement.classList.add('disconnected');
+        indicator.textContent = '🔑';
+        text.textContent = 'Need API Key';
+        return;
+    }
+
+    if (failed.length > 0) {
+        statusElement.classList.add('disconnected');
+        indicator.textContent = '⚠️';
+        text.textContent = `AI: ${failed.length} key${failed.length > 1 ? 's' : ''} failing`;
+        return;
+    }
+
+    statusElement.classList.add('connected');
+    indicator.textContent = '🤖';
+    const sources = [...new Set(passed.map(p => p.source))];
+    text.textContent = 'AI Ready';
+    if (sources.length) {
+        text.textContent += sources.includes('env') && sources.includes('ui')
+            ? ' (env + UI)'
+            : sources[0] === 'env' ? ' (.env)' : ' (UI key)';
     }
 }
 
 async function testAIConnection() {
     const settings = loadAISettings();
-    if (!settings || !settings.aiEnabled || !settings.apiKey) {
+    const hasKey = settings?.apiKey || settings?.geminiApiKey;
+    if (!settings || !settings.aiEnabled || !hasKey) {
         return { connected: false, error: 'No API key configured' };
     }
-    
-    // Use chat model for testing since it's used for the AI assistant
-    const model = settings.chatModel || settings.reorganizeModel || settings.aiModel || 'gpt-4o-mini';
-    return await testLLMConnection(settings.apiKey, model);
+
+    const model = settings.chatModel || settings.reorganizeModel || settings.aiModel || 'gpt-5.4-mini';
+    const modelId = getModelName(model);
+    const { apiKey } = getAPIConfig(modelId, settings);
+    return await testLLMConnection(apiKey, model, settings);
+}
+
+// Fetches the backend's live test of its .env-configured provider keys.
+async function fetchBackendKeyTests() {
+    try {
+        const resp = await fetch(`${getBackendUrl()}/api/test-keys`);
+        if (!resp.ok) return null;
+        return await resp.json();
+    } catch (e) {
+        console.warn('Backend key test failed:', e);
+        return null;
+    }
+}
+
+// Aggregates env + UI key probes into a unified per-provider list.
+// "AI Ready" requires every configured provider's test to have passed.
+async function collectProviderStatus() {
+    const [backendTests, settings] = await Promise.all([
+        fetchBackendKeyTests(),
+        Promise.resolve(loadAISettings())
+    ]);
+
+    const providers = [];
+
+    const env = backendTests?.providers || {};
+    providers.push({
+        provider: 'OpenAI',
+        source: 'env',
+        configured: !!env.openai?.configured,
+        ok: !!env.openai?.ok,
+        model: env.openai?.model || null,
+        error: env.openai?.error || null
+    });
+    providers.push({
+        provider: 'Gemini',
+        source: 'env',
+        configured: !!env.gemini?.configured,
+        ok: !!env.gemini?.ok,
+        model: env.gemini?.model || null,
+        error: env.gemini?.error || null
+    });
+
+    const uiKey = settings?.aiEnabled && (settings?.apiKey || settings?.geminiApiKey);
+    if (uiKey) {
+        const probe = await testAIConnection();
+        const usingGemini = !settings.apiKey && !!settings.geminiApiKey;
+        providers.push({
+            provider: usingGemini ? 'Gemini' : 'OpenAI',
+            source: 'ui',
+            configured: true,
+            ok: !!probe.connected,
+            model: probe.model || null,
+            error: probe.error || null
+        });
+    }
+
+    backendKeyStatus.hasOpenAI = providers.some(p => p.provider === 'OpenAI' && p.source === 'env' && p.configured);
+    backendKeyStatus.hasGemini = providers.some(p => p.provider === 'Gemini' && p.source === 'env' && p.configured);
+    updateReorganizeButton();
+
+    return providers;
 }
 
 async function testConnectionAfterKeyChange() {
-    const settings = loadAISettings();
-    if (!settings || !settings.apiKey) return;
-    
+    // Persist current field values immediately so a refresh keeps the key
+    // even if the user closes the modal without clicking "Save Settings".
+    saveAISettings();
+
+    const settings = JSON.parse(localStorage.getItem('pinpanda_ai_settings') || '{}');
+    const hasKey = settings.apiKey || settings.geminiApiKey;
+    if (!hasKey) return;
+
     const statusElement = document.getElementById('llm-connection-status');
     const resultElement = document.getElementById('connection-result');
-    
+
     if (!statusElement || !resultElement) return;
-    
-    // Show testing status
+
     statusElement.style.display = 'block';
     statusElement.className = 'llm-connection-status testing';
-    resultElement.textContent = '⏳ Testing connection to OpenAI...';
-    
+    resultElement.textContent = '⏳ Testing connection...';
+
     try {
-        const model = settings.chatModel || settings.reorganizeModel || settings.aiModel || 'gpt-4o-mini';
-        const result = await testLLMConnection(settings.apiKey, model);
+        const model = settings.chatModel || settings.reorganizeModel || settings.aiModel || 'gpt-5.4-mini';
+        const modelId = getModelName(model);
+        const { apiKey } = getAPIConfig(modelId, settings);
+        const result = await testLLMConnection(apiKey, model, settings);
         
         if (result.connected) {
             statusElement.className = 'llm-connection-status success';
@@ -939,16 +1125,22 @@ function createBookmarkGridItem(bookmark) {
     item.addEventListener('dragend', handleBookmarkDragEnd);
     
     item.innerHTML = `
-        <input type="checkbox" class="selection-checkbox" onclick="handleBookmarkSelection(event, '${bookmark.url}')" />
+        <input type="checkbox" class="selection-checkbox" onclick="handleBookmarkSelection(event, '${escapeHtml(bookmark.url)}')" />
         <div class="drag-handle">⋮⋮</div>
-        <a href="${bookmark.url}" class="bookmark-title" target="_blank" onclick="event.stopPropagation()" draggable="false">
-            ${bookmark.title}
+        <button class="action-btn bookmark-menu-btn bookmark-menu-btn--grid" title="More options">⋯</button>
+        <a href="${escapeHtml(bookmark.url)}" class="bookmark-title" target="_blank" onclick="event.stopPropagation()" draggable="false">
+            ${escapeHtml(bookmark.title)}
         </a>
-        <div class="bookmark-url">${bookmark.url}</div>
-        <div class="bookmark-description">${bookmark.description}</div>
-        <div class="bookmark-category">${bookmark.category}</div>
+        <div class="bookmark-url">${escapeHtml(bookmark.url)}</div>
+        <div class="bookmark-description">${escapeHtml(bookmark.description || '')}</div>
+        <div class="bookmark-category">${escapeHtml(bookmark.category)}</div>
     `;
-    
+
+    item.querySelector('.bookmark-menu-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showBookmarkMenu(e, bookmark.url);
+    });
+
     return item;
 }
 
@@ -1010,16 +1202,21 @@ function createBookmarkTableRow(bookmark) {
         </td>
         <td class="bookmarks-table-cell">
             <div class="bookmark-actions">
-                <button class="action-btn" onclick="window.open('${bookmark.url}', '_blank')" title="Open">
+                <button class="action-btn" onclick="window.open('${escapeHtml(bookmark.url)}', '_blank')" title="Open">
                     ↗
                 </button>
-                <button class="action-btn" onclick="showBookmarkMenu(event)" title="More options">
+                <button class="action-btn bookmark-menu-btn" title="More options">
                     ⋯
                 </button>
             </div>
         </td>
     `;
-    
+
+    row.querySelector('.bookmark-menu-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showBookmarkMenu(e, bookmark.url);
+    });
+
     return row;
 }
 
@@ -1141,10 +1338,195 @@ function updateSortDropdown() {
     }
 }
 
-function showBookmarkMenu(event) {
+function showBookmarkMenu(event, bookmarkUrl) {
     event.stopPropagation();
-    // Placeholder for bookmark context menu
-    console.log('Show bookmark menu');
+    closeBookmarkMenu();
+
+    const menu = document.createElement('div');
+    menu.id = 'bookmark-context-menu';
+    menu.className = 'bookmark-context-menu';
+
+    // Delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'context-menu-item context-menu-danger';
+    deleteBtn.textContent = '🗑 Delete';
+    deleteBtn.addEventListener('click', () => deleteBookmark(bookmarkUrl));
+    menu.appendChild(deleteBtn);
+
+    // Separator + label
+    const sep = document.createElement('div');
+    sep.className = 'context-menu-separator';
+    menu.appendChild(sep);
+    const label = document.createElement('div');
+    label.className = 'context-menu-label';
+    label.textContent = 'Move to category';
+    menu.appendChild(label);
+
+    // Category list
+    const catsContainer = document.createElement('div');
+    catsContainer.className = 'context-menu-categories';
+    const cats = Object.keys(categories).sort();
+    if (cats.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'context-menu-empty';
+        empty.textContent = 'No categories yet';
+        catsContainer.appendChild(empty);
+    } else {
+        cats.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'context-menu-item context-menu-category';
+            btn.textContent = cat;
+            btn.addEventListener('click', () => moveBookmarkToCategory(bookmarkUrl, cat));
+            catsContainer.appendChild(btn);
+        });
+    }
+    menu.appendChild(catsContainer);
+    document.body.appendChild(menu);
+
+    // Position below the trigger button
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 220;
+    let left = rect.right - menuWidth + window.scrollX;
+    if (left < 8) left = 8;
+    menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    menu.style.left = `${left}px`;
+    menu.style.minWidth = `${menuWidth}px`;
+
+    setTimeout(() => document.addEventListener('click', closeBookmarkMenu, { once: true }), 0);
+}
+
+function closeBookmarkMenu() {
+    const menu = document.getElementById('bookmark-context-menu');
+    if (menu) menu.remove();
+}
+
+function deleteBookmark(url) {
+    closeBookmarkMenu();
+    const idx = bookmarks.findIndex(b => b.url === url);
+    if (idx === -1) return;
+    const bookmark = bookmarks[idx];
+
+    if (bookmark.id) {
+        const backendUrl = getBackendUrl();
+        fetch(`${backendUrl}/api/bookmarks/${bookmark.id}`, { method: 'DELETE' })
+            .catch(err => console.debug('Backend delete skipped:', err.message));
+    }
+
+    bookmarks.splice(idx, 1);
+    categories = generateCategoriesFromBookmarks(bookmarks);
+    saveBookmarksToStorage('manual');
+    renderCategoryTree();
+    updateBookmarkDisplay();
+    showToast('Bookmark deleted.');
+}
+
+function moveBookmarkToCategory(url, newCategory) {
+    closeBookmarkMenu();
+    const bookmark = bookmarks.find(b => b.url === url);
+    if (!bookmark) return;
+    bookmark.category = newCategory;
+    categories = generateCategoriesFromBookmarks(bookmarks);
+    saveBookmarksToStorage('manual');
+    renderCategoryTree();
+    updateBookmarkDisplay();
+    showToast(`Moved to "${newCategory}".`);
+}
+
+function bulkDeleteBookmarks() {
+    const urls = Array.from(selectedBookmarks);
+    if (urls.length === 0) return;
+    if (!confirm(`Delete ${urls.length} bookmark${urls.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+    const backendUrl = getBackendUrl();
+    const urlSet = new Set(urls);
+    const toDelete = bookmarks.filter(b => urlSet.has(b.url));
+
+    toDelete.forEach(b => {
+        if (b.id) {
+            fetch(`${backendUrl}/api/bookmarks/${b.id}`, { method: 'DELETE' })
+                .catch(err => console.debug('Backend delete skipped:', err.message));
+        }
+    });
+
+    bookmarks = bookmarks.filter(b => !urlSet.has(b.url));
+    categories = generateCategoriesFromBookmarks(bookmarks);
+    saveBookmarksToStorage('manual');
+    renderCategoryTree();
+    updateBookmarkDisplay();
+    exitSelectionMode();
+    showToast(`Deleted ${toDelete.length} bookmark${toDelete.length !== 1 ? 's' : ''}.`);
+}
+
+function bulkMoveToCategory() {
+    if (selectedBookmarks.size === 0) return;
+    closeBookmarkMenu();
+
+    const anchor = document.querySelector('#bulk-actions-bar .bulk-action-btn');
+    if (!anchor) return;
+
+    const menu = document.createElement('div');
+    menu.id = 'bookmark-context-menu';
+    menu.className = 'bookmark-context-menu';
+
+    const label = document.createElement('div');
+    label.className = 'context-menu-label';
+    label.textContent = `Move ${selectedBookmarks.size} bookmark${selectedBookmarks.size !== 1 ? 's' : ''} to`;
+    menu.appendChild(label);
+
+    const catsContainer = document.createElement('div');
+    catsContainer.className = 'context-menu-categories';
+    const cats = Object.keys(categories).sort();
+    if (cats.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'context-menu-empty';
+        empty.textContent = 'No categories yet';
+        catsContainer.appendChild(empty);
+    } else {
+        cats.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'context-menu-item context-menu-category';
+            btn.textContent = cat;
+            btn.addEventListener('click', () => applyBulkMove(cat));
+            catsContainer.appendChild(btn);
+        });
+    }
+    menu.appendChild(catsContainer);
+    document.body.appendChild(menu);
+
+    const rect = anchor.getBoundingClientRect();
+    const menuWidth = 240;
+    let left = rect.left + window.scrollX;
+    if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8;
+    menu.style.top = `${rect.top + window.scrollY - menu.offsetHeight - 8}px`;
+    menu.style.left = `${left}px`;
+    menu.style.minWidth = `${menuWidth}px`;
+
+    const requestedTop = rect.top + window.scrollY - menu.getBoundingClientRect().height - 8;
+    menu.style.top = `${requestedTop > 8 ? requestedTop : rect.bottom + window.scrollY + 4}px`;
+
+    setTimeout(() => document.addEventListener('click', closeBookmarkMenu, { once: true }), 0);
+}
+
+function applyBulkMove(newCategory) {
+    closeBookmarkMenu();
+    const urlSet = new Set(selectedBookmarks);
+    let moved = 0;
+    bookmarks.forEach(b => {
+        if (urlSet.has(b.url) && b.category !== newCategory) {
+            b.category = newCategory;
+            moved++;
+        }
+    });
+    if (moved === 0) {
+        showToast('No changes — already in that category.');
+        return;
+    }
+    categories = generateCategoriesFromBookmarks(bookmarks);
+    saveBookmarksToStorage('manual');
+    renderCategoryTree();
+    updateBookmarkDisplay();
+    exitSelectionMode();
+    showToast(`Moved ${moved} bookmark${moved !== 1 ? 's' : ''} to "${newCategory}".`);
 }
 
 // Search Functionality
@@ -1594,12 +1976,12 @@ function hideReorganizeModal() {
 let reorganizationSessionId = null;
 
 async function startReorganization() {
-    const aiSettings = loadAISettings();
-    if (!aiSettings || !aiSettings.apiKey) {
-        alert('API key not found. Please check your AI settings.');
+    const aiSettings = loadAISettings() || {};
+    if (!aiSettings.apiKey && !aiSettings.geminiApiKey && !backendHasAnyKey()) {
+        alert('API key not found. Add one in AI settings or set OPENAI_API_KEY / GOOGLE_GEMINI_API_KEY in the backend .env.');
         return;
     }
-    
+
     const depth = document.getElementById('reorganize-depth').value;
     
     // Generate session ID
@@ -1634,7 +2016,7 @@ async function startReorganization() {
             },
             body: JSON.stringify({
                 bookmarks: bookmarks,
-                apiKey: aiSettings.apiKey,
+                apiKey: aiSettings.apiKey || aiSettings.geminiApiKey || '',
                 model: aiSettings.reorganizeModel || 'gpt-5-mini',
                 categorizationDepth: depth,
                 sessionId: reorganizationSessionId
@@ -1776,6 +2158,16 @@ function exportBookmarks(format) {
 function hideUploadModal() {
     document.getElementById('upload-modal').style.display = 'none';
     resetUploadArea();
+    switchImportTab('file');
+}
+
+function switchImportTab(tabName) {
+    document.querySelectorAll('.import-tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.import-tab-content').forEach(panel => panel.classList.remove('active'));
+    const btn = document.querySelector(`.import-tab-btn[data-tab="${tabName}"]`);
+    const panel = document.getElementById(tabName === 'file' ? 'import-file-tab' : 'import-chrome-sync-tab');
+    if (btn) btn.classList.add('active');
+    if (panel) panel.classList.add('active');
 }
 
 function closeAllPanels() {
@@ -1835,65 +2227,23 @@ function processUploadedFile(file) {
         try {
             const htmlContent = e.target.result;
             const parsedBookmarks = parseBookmarkFile(htmlContent);
-            
+
             if (parsedBookmarks.length === 0) {
                 showUploadError('No bookmarks found in the file. Please check the file format.');
                 return;
             }
-            
-            // Store the bookmarks
-            bookmarks = parsedBookmarks;
-            
-            // Check if AI categorization is enabled
-            const aiSettings = loadAISettings();
-            if (aiSettings && aiSettings.aiEnabled && aiSettings.apiKey) {
-                showAIProcessing(parsedBookmarks.length);
-                
-                categorizeBookmarksWithAI(parsedBookmarks)
-                    .then(aiCategories => {
-                        categories = aiCategories;
-                        saveBookmarksToStorage();
-                        showUploadSuccess(parsedBookmarks.length, true);
-                        
-                        setTimeout(() => {
-                            hideUploadModal();
-                            renderCategoryTree();
-                            updateBookmarkDisplay();
-                        }, 2000);
-                    })
-                    .catch(error => {
-                        console.error('AI categorization failed:', error);
-                        categories = generateCategoriesFromBookmarks(parsedBookmarks);
-                        saveBookmarksToStorage();
-                        showUploadSuccess(parsedBookmarks.length, false);
-                        
-                        setTimeout(() => {
-                            hideUploadModal();
-                            renderCategoryTree();
-                            updateBookmarkDisplay();
-                        }, 2000);
-                    });
-                
-                return; // Exit early for AI processing
-            } else {
-                categories = generateCategoriesFromBookmarks(parsedBookmarks);
+
+            // Deduplicate against existing bookmarks then send to review
+            const existingUrls = new Set(bookmarks.map(b => b.url));
+            const newBookmarks = parsedBookmarks.filter(b => !existingUrls.has(b.url));
+
+            if (newBookmarks.length === 0) {
+                showUploadError('All bookmarks in this file are already in your collection.');
+                return;
             }
-            
-            // Save to localStorage
-            saveBookmarksToStorage();
-            
-            // Show success and update UI
-            showUploadSuccess(parsedBookmarks.length, false);
-            
-            // Update reorganize button state
-            updateReorganizeButton();
-            
-            setTimeout(() => {
-                hideUploadModal();
-                renderCategoryTree();
-                updateBookmarkDisplay();
-            }, 2000);
-            
+
+            hideUploadModal();
+            showImportReviewModal(newBookmarks, 'file_import');
         } catch (error) {
             console.error('Error parsing bookmark file:', error);
             showUploadError('Error parsing bookmark file. Please ensure it\'s a valid HTML bookmark export.');
@@ -1905,6 +2255,91 @@ function processUploadedFile(file) {
     };
     
     reader.readAsText(file);
+}
+
+function handleChromeJsonSelect(event) {
+    const files = event.target.files;
+    if (files.length === 0) return;
+
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.innerHTML = `
+        <div class="upload-icon">⏳</div>
+        <div class="upload-text">Processing bookmarks...</div>
+        <div class="upload-subtext">Reading Chrome bookmarks file</div>
+    `;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            const parsed = parseChromeBookmarksJson(data);
+
+            if (parsed.length === 0) {
+                showUploadError('No bookmarks found in the Chrome bookmarks file.');
+                return;
+            }
+
+            finalizeBookmarkImport(parsed);
+        } catch (err) {
+            console.error('Error reading Chrome bookmarks:', err);
+            showUploadError('Could not parse the Chrome bookmarks file. Make sure you selected the correct file.');
+        }
+    };
+    reader.onerror = function() {
+        showUploadError('Error reading file. Please try again.');
+    };
+    reader.readAsText(files[0]);
+}
+
+function parseChromeBookmarksJson(data) {
+    const results = [];
+    const skipNames = new Set(['Bookmarks bar', 'Other bookmarks', 'Synced bookmarks', 'Mobile bookmarks']);
+
+    function walk(node, pathParts) {
+        if (node.type === 'url') {
+            let dateAdded = null;
+            if (node.date_added) {
+                // Windows FILETIME: microseconds since 1601-01-01
+                const ms = Number(BigInt(node.date_added) / 1000n) - 11644473600000;
+                dateAdded = new Date(ms);
+            }
+            results.push({
+                title: node.name || 'Untitled',
+                url: node.url,
+                description: '',
+                category: pathParts.join(' / '),
+                dateAdded: dateAdded || new Date(),
+                favicon: getFaviconUrl(node.url)
+            });
+        } else if (node.type === 'folder' && Array.isArray(node.children)) {
+            const label = skipNames.has(node.name) ? null : node.name;
+            const nextPath = label ? [...pathParts, label] : pathParts;
+            for (const child of node.children) {
+                walk(child, nextPath);
+            }
+        }
+    }
+
+    if (data && data.roots) {
+        for (const root of Object.values(data.roots)) {
+            walk(root, []);
+        }
+    }
+    return results;
+}
+
+function finalizeBookmarkImport(parsedBookmarks) {
+    // Deduplicate then send to review modal
+    const existingUrls = new Set(bookmarks.map(b => b.url));
+    const newBookmarks = parsedBookmarks.filter(b => !existingUrls.has(b.url));
+
+    if (newBookmarks.length === 0) {
+        showUploadError('All bookmarks are already in your collection.');
+        return;
+    }
+
+    hideUploadModal();
+    showImportReviewModal(newBookmarks, 'file_import');
 }
 
 function parseBookmarkFile(htmlContent) {
@@ -2614,4 +3049,184 @@ function createMultiDragImage(event, count) {
             dragImage.parentNode.removeChild(dragImage);
         }
     }, 1);
+}
+
+// ── Chrome Sync ──────────────────────────────────────────────────────────────
+
+async function syncChrome() {
+    const statusEl = document.getElementById('chrome-sync-status');
+    if (statusEl) statusEl.textContent = 'Syncing…';
+
+    try {
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/chrome-bookmarks`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: res.statusText }));
+            throw new Error(err.detail || res.statusText);
+        }
+        const data = await res.json();
+        const incoming = parseChromeBookmarksJson(data);
+        const existingUrls = new Set(bookmarks.map(b => b.url));
+        const newOnes = incoming.filter(b => !existingUrls.has(b.url));
+
+        if (statusEl) statusEl.textContent = 'Connected — last synced just now.';
+
+        if (newOnes.length === 0) {
+            showToast('Already up to date — no new Chrome bookmarks found.');
+            return;
+        }
+
+        showImportReviewModal(newOnes, 'chrome_sync');
+    } catch (err) {
+        console.error('Chrome sync error:', err);
+        if (statusEl) statusEl.textContent = 'Sync failed: ' + err.message;
+        alert('Chrome sync failed: ' + err.message + '\n\nMake sure the PinPanda backend is running.');
+    }
+}
+
+// ── Import Review Modal ───────────────────────────────────────────────────────
+
+function showImportReviewModal(newBookmarks, source) {
+    importReviewBookmarks = newBookmarks.map((b, i) => ({ ...b, _checked: true, _idx: i }));
+    importReviewSource = source;
+
+    const aiSettings = loadAISettings();
+    const aiAvailable = aiSettings && aiSettings.aiEnabled && aiSettings.apiKey;
+    const aiBtn = document.getElementById('import-review-ai-btn');
+    if (aiBtn) aiBtn.disabled = !aiAvailable;
+
+    renderImportReviewList();
+    document.getElementById('import-review-modal').style.display = 'flex';
+}
+
+function hideImportReviewModal() {
+    document.getElementById('import-review-modal').style.display = 'none';
+    importReviewBookmarks = [];
+}
+
+function renderImportReviewList() {
+    const listEl = document.getElementById('import-review-list');
+    const countEl = document.getElementById('import-review-count');
+    const checkedCount = importReviewBookmarks.filter(b => b._checked).length;
+    countEl.textContent = `${checkedCount} of ${importReviewBookmarks.length} selected`;
+
+    listEl.innerHTML = importReviewBookmarks.map((b, i) => {
+        let domain = '';
+        try { domain = new URL(b.url).hostname; } catch (_) {}
+        const title = escapeHtml(b.title || b.url);
+        const domainSafe = escapeHtml(domain);
+        const favicon = b.favicon ? `<img class="import-review-favicon" src="${b.favicon}" onerror="this.style.display='none'">` : '<span class="import-review-favicon-placeholder"></span>';
+        return `<div class="import-review-row">
+            <input type="checkbox" ${b._checked ? 'checked' : ''} onchange="toggleImportReviewRow(${i}, this.checked)">
+            ${favicon}
+            <span class="import-review-title" title="${title}">${title}</span>
+            <span class="import-review-domain">${domainSafe}</span>
+            <button type="button" class="import-review-remove" onclick="removeImportReviewRow(${i})" title="Remove">×</button>
+        </div>`;
+    }).join('');
+}
+
+function toggleImportReviewRow(index, checked) {
+    if (importReviewBookmarks[index]) {
+        importReviewBookmarks[index]._checked = checked;
+        const countEl = document.getElementById('import-review-count');
+        const checkedCount = importReviewBookmarks.filter(b => b._checked).length;
+        countEl.textContent = `${checkedCount} of ${importReviewBookmarks.length} selected`;
+    }
+}
+
+function removeImportReviewRow(index) {
+    importReviewBookmarks.splice(index, 1);
+    renderImportReviewList();
+    if (importReviewBookmarks.length === 0) hideImportReviewModal();
+}
+
+function selectAllImportReview(checked) {
+    importReviewBookmarks.forEach(b => b._checked = checked);
+    renderImportReviewList();
+}
+
+function getCheckedImportBookmarks() {
+    return importReviewBookmarks
+        .filter(b => b._checked)
+        .map(({ _checked, _idx, ...b }) => b);
+}
+
+function confirmImportWithoutAI() {
+    const selected = getCheckedImportBookmarks();
+    if (selected.length === 0) { alert('No bookmarks selected.'); return; }
+    bookmarks = [...bookmarks, ...selected];
+    categories = generateCategoriesFromBookmarks(bookmarks);
+    saveBookmarksToStorage(importReviewSource);
+    renderCategoryTree();
+    updateBookmarkDisplay();
+    updateReorganizeButton();
+    hideImportReviewModal();
+    showToast(`Added ${selected.length} bookmark${selected.length !== 1 ? 's' : ''}.`);
+}
+
+function confirmImportWithAI() {
+    const selected = getCheckedImportBookmarks();
+    if (selected.length === 0) { alert('No bookmarks selected.'); return; }
+
+    hideImportReviewModal();
+    const source = importReviewSource;
+
+    // Show processing indicator
+    showToast(`Processing ${selected.length} bookmark${selected.length !== 1 ? 's' : ''} with AI…`);
+
+    categorizeBookmarksWithAI(selected)
+        .then(aiCategories => {
+            // Merge AI categories into existing, assign categories to selected bookmarks
+            const catMap = {};
+            function flattenCats(cats, prefix) {
+                for (const [cat, val] of Object.entries(cats)) {
+                    const fullCat = prefix ? `${prefix} / ${cat}` : cat;
+                    if (Array.isArray(val.bookmarks)) {
+                        val.bookmarks.forEach(i => { if (selected[i]) catMap[i] = fullCat; });
+                    }
+                    if (val.subcategories) flattenCats(val.subcategories, fullCat);
+                }
+            }
+            flattenCats(aiCategories, '');
+            selected.forEach((b, i) => { b.category = catMap[i] || b.category || 'Uncategorized'; });
+            bookmarks = [...bookmarks, ...selected];
+            categories = generateCategoriesFromBookmarks(bookmarks);
+            saveBookmarksToStorage(source);
+            renderCategoryTree();
+            updateBookmarkDisplay();
+            updateReorganizeButton();
+            showToast(`Added ${selected.length} bookmark${selected.length !== 1 ? 's' : ''} with AI categorization.`);
+        })
+        .catch(err => {
+            console.error('AI categorization failed:', err);
+            bookmarks = [...bookmarks, ...selected];
+            categories = generateCategoriesFromBookmarks(bookmarks);
+            saveBookmarksToStorage(source);
+            renderCategoryTree();
+            updateBookmarkDisplay();
+            updateReorganizeButton();
+            showToast(`Added ${selected.length} bookmark${selected.length !== 1 ? 's' : ''} (AI categorization failed, used folders).`);
+        });
+}
+
+
+function showToast(message) {
+    const existing = document.getElementById('pp-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.id = 'pp-toast';
+    toast.textContent = message;
+    Object.assign(toast.style, {
+        position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+        background: '#333', color: '#fff', padding: '10px 20px',
+        borderRadius: '6px', fontSize: '14px', zIndex: '99999',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+    });
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

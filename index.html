@@ -41,7 +41,7 @@
                     <span id="ai-status-indicator" class="ai-status-indicator">⚡</span>
                 </button>
                 <button class="btn-secondary" onclick="showSettingsModal()">⚙️ Settings</button>
-                <button class="btn-primary" onclick="showUploadModal()">+ Upload</button>
+                <button class="btn-primary" onclick="showUploadModal()">+ Import</button>
                 <button class="ai-toggle" onclick="toggleAIPanel()">💬 AI Assistant</button>
             </div>
         </header>
@@ -317,21 +317,40 @@
                             <div class="form-group">
                                 <label for="reorganize-model">Reorganization AI Model</label>
                                 <select id="reorganize-model" class="form-select">
-                                    <optgroup label="GPT-5 Series (Latest)">
-                                        <option value="gpt-5">GPT-5 (Most Advanced)</option>
-                                        <option value="gpt-5-mini" selected>GPT-5 Mini (Balanced)</option>
+                                    <optgroup label="OpenAI — GPT-5.5 Series">
+                                        <option value="gpt-5.5">GPT-5.5 (Most Advanced)</option>
+                                        <option value="gpt-5.5-pro">GPT-5.5 Pro (Extended Reasoning)</option>
+                                    </optgroup>
+                                    <optgroup label="OpenAI — GPT-5.4 Series">
+                                        <option value="gpt-5.4-mini" selected>GPT-5.4 Mini (Balanced)</option>
+                                        <option value="gpt-5.4-nano">GPT-5.4 Nano (Fastest)</option>
+                                    </optgroup>
+                                    <optgroup label="OpenAI — GPT-5 Series">
+                                        <option value="gpt-5">GPT-5 (Frontier)</option>
+                                        <option value="gpt-5-mini">GPT-5 Mini (High-Volume)</option>
                                         <option value="gpt-5-nano">GPT-5 Nano (Fastest)</option>
                                     </optgroup>
-                                    <optgroup label="Reasoning Models">
-                                        <option value="o3-mini">o3-mini (Deep Reasoning)</option>
+                                    <optgroup label="OpenAI — Reasoning">
+                                        <option value="o3">o3 (Deep Reasoning)</option>
+                                        <option value="o3-mini">o3-mini (Cost-Efficient Reasoning)</option>
                                     </optgroup>
-                                    <optgroup label="GPT-4 Series">
+                                    <optgroup label="OpenAI — GPT-4 Series">
                                         <option value="gpt-4o">GPT-4o (Multimodal)</option>
-                                        <option value="gpt-4o-mini">GPT-4o Mini (Cost-Effective)</option>
-                                        <option value="gpt-4.1">GPT-4.1 (Coding Specialist)</option>
+                                        <option value="gpt-4.1">GPT-4.1 (Coding)</option>
+                                        <option value="gpt-4o-mini">GPT-4o Mini (Budget)</option>
                                     </optgroup>
-                                    <optgroup label="Legacy">
-                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
+                                    <optgroup label="OpenAI — Legacy">
+                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                    </optgroup>
+                                    <optgroup label="Google Gemini — Gemini 3 Series">
+                                        <option value="gemini-3.5-flash">Gemini 3.5 Flash (Most Intelligent)</option>
+                                        <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Advanced)</option>
+                                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Cost-Efficient)</option>
+                                    </optgroup>
+                                    <optgroup label="Google Gemini — Gemini 2.5 Series">
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (Complex Tasks)</option>
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Price-Performance)</option>
+                                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Budget)</option>
                                     </optgroup>
                                 </select>
                                 <p class="form-description">Model used for bookmark reorganization and categorization</p>
@@ -339,21 +358,40 @@
                             <div class="form-group">
                                 <label for="chat-model">AI Assistant Chat Model</label>
                                 <select id="chat-model" class="form-select">
-                                    <optgroup label="GPT-5 Series (Latest)">
-                                        <option value="gpt-5">GPT-5 (Most Advanced)</option>
-                                        <option value="gpt-5-mini">GPT-5 Mini (Balanced)</option>
-                                        <option value="gpt-5-nano" selected>GPT-5 Nano (Fastest)</option>
+                                    <optgroup label="OpenAI — GPT-5.5 Series">
+                                        <option value="gpt-5.5">GPT-5.5 (Most Advanced)</option>
+                                        <option value="gpt-5.5-pro">GPT-5.5 Pro (Extended Reasoning)</option>
                                     </optgroup>
-                                    <optgroup label="Reasoning Models">
-                                        <option value="o3-mini">o3-mini (Deep Reasoning)</option>
+                                    <optgroup label="OpenAI — GPT-5.4 Series">
+                                        <option value="gpt-5.4-mini">GPT-5.4 Mini (Balanced)</option>
+                                        <option value="gpt-5.4-nano" selected>GPT-5.4 Nano (Fastest)</option>
                                     </optgroup>
-                                    <optgroup label="GPT-4 Series">
+                                    <optgroup label="OpenAI — GPT-5 Series">
+                                        <option value="gpt-5">GPT-5 (Frontier)</option>
+                                        <option value="gpt-5-mini">GPT-5 Mini (High-Volume)</option>
+                                        <option value="gpt-5-nano">GPT-5 Nano (Fastest)</option>
+                                    </optgroup>
+                                    <optgroup label="OpenAI — Reasoning">
+                                        <option value="o3">o3 (Deep Reasoning)</option>
+                                        <option value="o3-mini">o3-mini (Cost-Efficient Reasoning)</option>
+                                    </optgroup>
+                                    <optgroup label="OpenAI — GPT-4 Series">
                                         <option value="gpt-4o">GPT-4o (Multimodal)</option>
-                                        <option value="gpt-4o-mini">GPT-4o Mini (Cost-Effective)</option>
-                                        <option value="gpt-4.1">GPT-4.1 (Coding Specialist)</option>
+                                        <option value="gpt-4.1">GPT-4.1 (Coding)</option>
+                                        <option value="gpt-4o-mini">GPT-4o Mini (Budget)</option>
                                     </optgroup>
-                                    <optgroup label="Legacy">
-                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
+                                    <optgroup label="OpenAI — Legacy">
+                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                    </optgroup>
+                                    <optgroup label="Google Gemini — Gemini 3 Series">
+                                        <option value="gemini-3.5-flash">Gemini 3.5 Flash (Most Intelligent)</option>
+                                        <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Advanced)</option>
+                                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Cost-Efficient)</option>
+                                    </optgroup>
+                                    <optgroup label="Google Gemini — Gemini 2.5 Series">
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (Complex Tasks)</option>
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Price-Performance)</option>
+                                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Budget)</option>
                                     </optgroup>
                                 </select>
                                 <p class="form-description">Model used for AI assistant chat and bookmark search</p>
@@ -361,10 +399,15 @@
                             <div class="form-group">
                                 <label for="openai-api-key">OpenAI API Key</label>
                                 <input type="password" id="openai-api-key" class="form-input" placeholder="sk-..." onchange="testConnectionAfterKeyChange()" autocomplete="off" data-form-type="other">
-                                <p class="form-description">Your API key is stored securely in your browser and never sent to our servers</p>
+                                <p class="form-description">Required for OpenAI models. Stored locally in your browser and never sent to our servers.</p>
                                 <div class="llm-connection-status" id="llm-connection-status" style="display: none;">
                                     <span class="connection-result" id="connection-result"></span>
                                 </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="gemini-api-key">Google Gemini API Key</label>
+                                <input type="password" id="gemini-api-key" class="form-input" placeholder="AIza..." onchange="testConnectionAfterKeyChange()" autocomplete="off" data-form-type="other">
+                                <p class="form-description">Required for Google Gemini models. Stored locally in your browser and never sent to our servers.</p>
                             </div>
                             <div class="form-group">
                                 <label for="categorization-depth">Categorization Depth</label>
@@ -376,13 +419,14 @@
                             </div>
                         </div>
                     </div>
-                    
+
+
                 </div>
-                
-                <div class="modal-footer">
-                    <button class="btn-secondary" onclick="hideSettingsModal()">Cancel</button>
-                    <button class="btn-primary" onclick="saveAISettings(); hideSettingsModal();">Save Settings</button>
-                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="hideSettingsModal()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="saveAISettings(); hideSettingsModal();">Save Settings</button>
             </div>
         </div>
     </div>
@@ -390,56 +434,104 @@
     <div id="upload-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">Upload Bookmarks</h3>
+                <h3 class="modal-title">Import Bookmarks</h3>
                 <button class="modal-close" onclick="hideUploadModal()">×</button>
             </div>
-            
+
+            <div class="import-tabs">
+                <button type="button" class="import-tab-btn active" data-tab="file" onclick="switchImportTab('file')">Import File</button>
+                <button type="button" class="import-tab-btn" data-tab="chrome-sync" onclick="switchImportTab('chrome-sync')">Chrome Sync</button>
+            </div>
+
             <div class="modal-body">
-                <div class="upload-area" id="upload-area" ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-                    <input type="file" id="file-input" class="hidden-file-input" accept=".html,.htm" onchange="handleFileSelect(event)">
-                    <div class="upload-icon">📤</div>
-                    <div class="upload-text">Drag and drop your bookmark HTML file here</div>
-                    <div class="upload-subtext">Or click to browse files</div>
-                    <button class="upload-button" onclick="document.getElementById('file-input').click()">
-                        📁 Select File
-                    </button>
-                </div>
-                
-                <div class="browser-support">
-                    <div class="browser-support-title">Supported browsers:</div>
-                    <div class="browser-list">
-                        <div class="browser-item">
-                            <div class="browser-icon browser-chrome">🌐</div>
-                            <div class="browser-name">Chrome</div>
-                        </div>
-                        <div class="browser-item">
-                            <div class="browser-icon browser-firefox">🦊</div>
-                            <div class="browser-name">Firefox</div>
-                        </div>
-                        <div class="browser-item">
-                            <div class="browser-icon browser-safari">🧭</div>
-                            <div class="browser-name">Safari</div>
-                        </div>
-                        <div class="browser-item">
-                            <div class="browser-icon browser-edge">🌊</div>
-                            <div class="browser-name">Edge</div>
+                <!-- Import File Tab -->
+                <div id="import-file-tab" class="import-tab-content active">
+                    <div class="upload-area" id="upload-area" ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                        <input type="file" id="file-input" class="hidden-file-input" accept=".html,.htm" onchange="handleFileSelect(event)">
+                        <div class="upload-icon">📤</div>
+                        <div class="upload-text">Drag and drop your bookmark HTML file here</div>
+                        <div class="upload-subtext">Or click to browse files</div>
+                        <button type="button" class="upload-button" onclick="document.getElementById('file-input').click()">
+                            📁 Select File
+                        </button>
+                    </div>
+
+                    <div class="browser-support">
+                        <div class="browser-support-title">Supported browsers:</div>
+                        <div class="browser-list">
+                            <div class="browser-item">
+                                <div class="browser-icon browser-chrome">🌐</div>
+                                <div class="browser-name">Chrome</div>
+                            </div>
+                            <div class="browser-item">
+                                <div class="browser-icon browser-firefox">🦊</div>
+                                <div class="browser-name">Firefox</div>
+                            </div>
+                            <div class="browser-item">
+                                <div class="browser-icon browser-safari">🧭</div>
+                                <div class="browser-name">Safari</div>
+                            </div>
+                            <div class="browser-item">
+                                <div class="browser-icon browser-edge">🌊</div>
+                                <div class="browser-name">Edge</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="help-section">
-                    <div class="help-header">
-                        <span class="help-icon">ℹ️</span>
-                        <h4 class="help-title">How to export your bookmarks</h4>
+
+                    <div class="help-section">
+                        <div class="help-header">
+                            <span class="help-icon">ℹ️</span>
+                            <h4 class="help-title">How to export your bookmarks</h4>
+                        </div>
+                        <p class="help-text">
+                            In most browsers, go to Bookmarks > Bookmark Manager > Export Bookmarks. Import the exported HTML file here.
+                        </p>
                     </div>
-                    <p class="help-text">
-                        In most browsers, go to Bookmarks > Bookmark Manager > Export Bookmarks. The exported file is what you'll upload here.
-                    </p>
+                </div>
+
+                <!-- Chrome Sync Tab -->
+                <div id="import-chrome-sync-tab" class="import-tab-content">
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <p class="form-description">Reads your Chrome bookmarks directly via the PinPanda backend. Only new bookmarks (not already in your collection) will be shown for review before adding. Requires the backend to be running on port 8000.</p>
+                        </div>
+                        <div class="form-group">
+                            <div id="chrome-sync-status" class="chrome-sync-status">Ready to sync.</div>
+                        </div>
+                        <div class="form-group chrome-sync-actions">
+                            <button type="button" class="btn-primary" onclick="syncChrome()">🌐 Sync Chrome Bookmarks</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
+
             <div class="modal-footer">
-                <button class="btn-cancel" onclick="hideUploadModal()">Cancel</button>
+                <button type="button" class="btn-cancel" onclick="hideUploadModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Review Modal -->
+    <div id="import-review-modal" class="modal" style="display:none;">
+        <div class="modal-content modal-content--wide">
+            <div class="modal-header">
+                <h3 class="modal-title">Review Imported Bookmarks</h3>
+                <button type="button" class="modal-close" onclick="hideImportReviewModal()">×</button>
+            </div>
+            <div class="import-review-toolbar">
+                <span id="import-review-count" class="import-review-count"></span>
+                <div class="import-review-toolbar-actions">
+                    <button type="button" class="btn-secondary btn-sm" onclick="selectAllImportReview(true)">Select All</button>
+                    <button type="button" class="btn-secondary btn-sm" onclick="selectAllImportReview(false)">Deselect All</button>
+                </div>
+            </div>
+            <div class="modal-body import-review-body">
+                <div id="import-review-list" class="import-review-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="hideImportReviewModal()">Cancel</button>
+                <button type="button" class="btn-secondary" onclick="confirmImportWithoutAI()">Add Without AI</button>
+                <button type="button" class="btn-primary" id="import-review-ai-btn" onclick="confirmImportWithAI()">Process Selected with AI</button>
             </div>
         </div>
     </div>

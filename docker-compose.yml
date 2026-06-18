@@ -1,0 +1,32 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Mounts the host Chrome bookmarks file (read-only) so the backend can read it.
+    # CHROME_BOOKMARKS_PATH is set in .env
+    volumes:
+      - type: bind
+        source: ${CHROME_BOOKMARKS_PATH}
+        target: /chrome-bookmarks/Bookmarks
+        read_only: true
+      - type: bind
+        source: ./data
+        target: /app/data
